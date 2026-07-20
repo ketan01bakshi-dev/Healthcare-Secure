@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.db
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+
+# Capacitor native projects (generated locally)
+frontend/android/
+frontend/ios/
+
+# Env / secrets — never commit
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Durable prescription share PDFs (ephemeral 24h files)
+backend/app/data/presigned_pdfs/
+backend/data/
