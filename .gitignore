@@ -37,3 +37,12 @@ Thumbs.db
 # Durable prescription share PDFs (ephemeral 24h files)
 backend/app/data/presigned_pdfs/
 backend/data/
+backend/backups/
+deploy/certs/*
+!deploy/certs/README.md
+frontend/android/key.properties
+*.jks
+*.keystore
+
+# Share pack (APK + live PINs — never commit)
+share/
