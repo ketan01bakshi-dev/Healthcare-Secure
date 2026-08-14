@@ -1,0 +1,20 @@
+{
+  "name": "healthcare-secure",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Healthcare-Secure: a security-focused patient records demo (Express + SQLite API and a React frontend).",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace client",
+    "test": "npm run test --workspace server",
+    "seed": "npm run seed --workspace server"
+  }
+}
