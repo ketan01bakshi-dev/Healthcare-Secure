@@ -1,0 +1,15 @@
+{
+  "name": "Healthcare-Secure",
+  "install": "npm install && npm run seed",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "npm run dev:server"
+    },
+    {
+      "name": "web",
+      "command": "npm run dev:client"
+    }
+  ],
+  "ports": [3001, 5173]
+}
