@@ -48,10 +48,11 @@ export default function PatientBar() {
       className="mx-auto w-full max-w-3xl overflow-x-hidden rounded-2xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6"
     >
       <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Patient
+        Current patient
       </h2>
       <p className="mt-1 text-sm text-slate-600">
-        Enter the patient&apos;s full name and 10-digit mobile number to begin.
+        Use the clinic search above, or enter the patient&apos;s full name and
+        10-digit mobile number here.
       </p>
 
       {!locked ? (

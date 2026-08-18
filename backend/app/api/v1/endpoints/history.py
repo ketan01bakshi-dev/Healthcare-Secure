@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.record import ClinicalRecord
+from app.services.clinical_search import remember_patient_identity, search_clinic_records
 from app.services.doctor_auth import DoctorSession
 from app.services.lml_parser import ClinicalParseResult, MedicationItem
 from app.services.pdf_generator import generate_prescription_pdf, prescription_issue_timestamp
@@ -83,6 +84,32 @@ class ClinicalRecordOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GlobalSearchRequest(BaseModel):
+    query: str = Field(..., min_length=2, max_length=120)
+    locked_blind_patient_id: str | None = Field(default=None, max_length=64)
+
+    @field_validator("query")
+    @classmethod
+    def valid_query(cls, value: str) -> str:
+        stripped = value.strip()
+        if len(stripped) < 2:
+            raise ValueError("query must be at least 2 characters")
+        return stripped
+
+
+class GlobalSearchResultOut(BaseModel):
+    kind: Literal["patient", "record"]
+    blind_patient_id: str
+    patient_name: str | None = None
+    patient_phone: str | None = None
+    record_id: str | None = None
+    created_at: datetime | None = None
+    title: str
+    subtitle: str
+    match_source: str
+    locked_patient_priority: bool = False
+
+
 def _as_utc_aware(value: datetime | None) -> datetime | None:
     """SQLite ``func.now()`` is naive UTC — mark it so clients convert to IST correctly."""
     if value is None:
@@ -141,6 +168,12 @@ def tokenize_patient(
     blind_patient = _tokenize_or_400(composite)
     blind_name = _tokenize_or_400(name) if name else None
     blind_phone = _tokenize_or_400(phone_digits) if phone_digits else None
+    if name and phone_digits:
+        remember_patient_identity(
+            blind_patient_id=blind_patient,
+            patient_name=name,
+            patient_phone=phone_digits,
+        )
     return TokenizeResponse(
         blind_patient_id=blind_patient,
         blind_name_id=blind_name,
@@ -186,6 +219,35 @@ def search_clinical_history(
     return out
 
 
+@router.post("/global-search", response_model=list[GlobalSearchResultOut])
+def global_search_history(
+    body: GlobalSearchRequest,
+    _auth: DoctorSession,
+    db: Session = Depends(get_db),
+) -> list[GlobalSearchResultOut]:
+    """Clinic-wide patient and record search with locked-patient priority."""
+    matches = search_clinic_records(
+        db,
+        query=body.query,
+        locked_blind_patient_id=body.locked_blind_patient_id,
+    )
+    return [
+        GlobalSearchResultOut(
+            kind=item.kind,
+            blind_patient_id=item.blind_patient_id,
+            patient_name=item.patient_name,
+            patient_phone=item.patient_phone,
+            record_id=item.record_id,
+            created_at=_as_utc_aware(item.created_at),
+            title=item.title,
+            subtitle=item.subtitle,
+            match_source=item.match_source,
+            locked_patient_priority=item.locked_patient_priority,
+        )
+        for item in matches
+    ]
+
+
 @router.post("/documents", response_model=ClinicalRecordOut)
 async def upload_patient_document(
     session: DoctorSession,
@@ -204,6 +266,15 @@ async def upload_patient_document(
     File bytes are stored in encounter_data (POC); raw patient name is never stored.
     """
     blind_id = _tokenize_or_400(raw_identifier.strip())
+    try:
+        patient_name, patient_phone = raw_identifier.strip().split("|", 1)
+        remember_patient_identity(
+            blind_patient_id=blind_id,
+            patient_name=patient_name,
+            patient_phone=patient_phone,
+        )
+    except ValueError:
+        pass
 
     content_type = (file.content_type or "application/octet-stream").lower()
     if content_type not in _ALLOWED_DOC_TYPES:
@@ -441,6 +512,15 @@ def add_vitals_entry(
     Each entry records who entered it (user_id + display name) for audit.
     """
     blind_id = _tokenize_or_400(body.raw_identifier)
+    try:
+        patient_name, patient_phone = body.raw_identifier.strip().split("|", 1)
+        remember_patient_identity(
+            blind_patient_id=blind_id,
+            patient_name=patient_name,
+            patient_phone=patient_phone,
+        )
+    except ValueError:
+        pass
     issued, issued_human, issued_iso = prescription_issue_timestamp()
     vitals = body.vitals.model_dump()
     notes = (body.diagnostic_notes or "").strip()
