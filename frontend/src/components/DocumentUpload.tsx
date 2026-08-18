@@ -2,18 +2,22 @@
 
 import { FormEvent, useState } from "react";
 
+import CollapsibleSection from "@/components/CollapsibleSection";
+import PatientAttachments from "@/components/PatientAttachments";
 import { apiFetch } from "@/lib/doctorSession";
 import { usePatient } from "@/context/PatientContext";
 
 type Props = {
   onUploaded?: () => void;
+  /** Lab users: only diagnostic reports. */
+  labOnly?: boolean;
 };
 
-export default function DocumentUpload({ onUploaded }: Props) {
+export default function DocumentUpload({ onUploaded, labOnly = false }: Props) {
   const { locked, rawIdentifier, bumpHistory } = usePatient();
   const [kind, setKind] = useState<
     "scanned_prescription" | "diagnostic_report" | "other"
-  >("scanned_prescription");
+  >(labOnly ? "diagnostic_report" : "scanned_prescription");
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,23 +64,22 @@ export default function DocumentUpload({ onUploaded }: Props) {
   }
 
   return (
-    <section
+    <CollapsibleSection
       aria-label="Upload scanned documents"
-      className="mx-auto w-full max-w-md overflow-x-hidden rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-6 sm:px-6"
+      hint={
+        labOnly
+          ? "Upload diagnostic lab reports for this patient. The doctor can open them later."
+          : "Attach prior prescriptions or lab/scan reports for this patient."
+      }
+      title={labOnly ? "Lab reports" : "Scanned reports"}
+      variant="dark"
     >
-      <h2 className="text-lg font-semibold tracking-tight text-clinical-50">
-        Scanned Rx &amp; reports
-      </h2>
-      <p className="mt-2 text-sm text-clinical-100/70">
-        Attach prior prescriptions or lab/scan reports for this patient.
-      </p>
-
-      <form className="mt-5 flex flex-col gap-3" onSubmit={onSubmit}>
+      <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <label className="text-xs uppercase tracking-wide text-clinical-100/55">
           Document type
           <select
-            className="mt-1 min-h-12 w-full rounded-lg border border-clinical-100/20 bg-black/25 px-3 text-sm text-clinical-50"
-            disabled={!locked || busy}
+            className="mt-1 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
+            disabled={!locked || busy || labOnly}
             onChange={(e) =>
               setKind(
                 e.target.value as
@@ -87,16 +90,22 @@ export default function DocumentUpload({ onUploaded }: Props) {
             }
             value={kind}
           >
-            <option value="scanned_prescription">Scanned prescription</option>
-            <option value="diagnostic_report">Diagnostic report</option>
-            <option value="other">Other</option>
+            {labOnly ? (
+              <option value="diagnostic_report">Diagnostic report</option>
+            ) : (
+              <>
+                <option value="scanned_prescription">Scanned prescription</option>
+                <option value="diagnostic_report">Diagnostic report</option>
+                <option value="other">Other</option>
+              </>
+            )}
           </select>
         </label>
 
         <label className="text-xs uppercase tracking-wide text-clinical-100/55">
           Title (optional)
           <input
-            className="mt-1 min-h-12 w-full rounded-lg border border-clinical-100/20 bg-black/25 px-3 text-sm text-clinical-50"
+            className="mt-1 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
             disabled={!locked || busy}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Lab report Mar 2026"
@@ -108,7 +117,7 @@ export default function DocumentUpload({ onUploaded }: Props) {
           File (PDF / JPEG / PNG)
           <input
             accept="application/pdf,image/jpeg,image/png,image/webp"
-            className="mt-1 w-full text-sm text-clinical-100"
+            className="mt-1 w-full rounded-lg bg-white text-sm text-slate-900"
             disabled={!locked || busy}
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             type="file"
@@ -120,7 +129,7 @@ export default function DocumentUpload({ onUploaded }: Props) {
           disabled={!locked || busy || !file}
           type="submit"
         >
-          {busy ? "Uploading…" : "Upload to history"}
+          {busy ? "Uploading…" : "Upload"}
         </button>
       </form>
 
@@ -134,6 +143,8 @@ export default function DocumentUpload({ onUploaded }: Props) {
           {status}
         </p>
       ) : null}
-    </section>
+
+      <PatientAttachments documentsOnly embedded />
+    </CollapsibleSection>
   );
 }

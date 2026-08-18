@@ -107,6 +107,37 @@ def test_lab_forbidden_vitals(client: TestClient) -> None:
     assert r.status_code == 403
 
 
+def test_lab_can_tokenize_and_list_patients(client: TestClient) -> None:
+    doctor = _session(client, "dr1", "1234")
+    created = client.post(
+        "/api/v1/history/tokenize",
+        headers=doctor,
+        json={"patient_name": "Lab Desk Pat", "patient_phone": "9888812345"},
+    )
+    assert created.status_code == 200, created.text
+    blind_id = created.json()["blind_patient_id"]
+
+    lab = _session(client, "lab1", "9999")
+    listed = client.get("/api/v1/history/patients", headers=lab)
+    assert listed.status_code == 200, listed.text
+    assert any(p["blind_patient_id"] == blind_id for p in listed.json())
+
+    identity = client.get(
+        f"/api/v1/history/patients/{blind_id}/identity",
+        headers=lab,
+    )
+    assert identity.status_code == 200, identity.text
+    assert identity.json()["display_name"] == "Lab Desk Pat"
+
+    locked = client.post(
+        "/api/v1/history/tokenize",
+        headers=lab,
+        json={"patient_name": "Lab Desk Pat", "patient_phone": "9888812345"},
+    )
+    assert locked.status_code == 200, locked.text
+    assert locked.json()["blind_patient_id"] == blind_id
+
+
 def test_staff_can_save_vitals(client: TestClient) -> None:
     headers = _session(client, "nurse1", "5678")
     raw = build_patient_raw_identifier("Pat", "9123456780")

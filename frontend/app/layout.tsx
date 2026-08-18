@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Healthcare Secure",
-  description: "Secure healthcare application frontend",
+  title: "Aarogya One Connect",
+  description: "Clinic voice-to-prescription and records for Aarogya One Connect",
   robots: { index: false, follow: false },
 };
 

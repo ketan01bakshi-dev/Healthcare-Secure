@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: healthcare
+      # Override in production: export POSTGRES_PASSWORD=... before compose up
+      # (also set the same password in backend/.env DATABASE_URL).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-healthcare}
+      POSTGRES_DB: healthcare
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Do NOT publish 5432 on a public VPS. Local laptop debugging can temporarily
+    # add: ports: ["127.0.0.1:5432:5432"]
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthcare"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # DATABASE_URL must come from backend/.env only. Do not override with
+      # ${POSTGRES_PASSWORD:-healthcare} here — that silently uses "healthcare"
+      # when the compose project has no POSTGRES_PASSWORD and breaks auth.
+      APP_ENV: production
+      REQUIRE_CLINIC_USERS: "true"
+      WHISPER_PRELOAD: "false"
+      # Prefer cloud STT/LLM on VPS (set keys in backend/.env). Local Whisper is not in the image.
+      # WHISPER_PROVIDER: groq
+      # LLM_PROVIDER: groq
+      # PUBLIC_API_BASE_URL / CORS / ALLOWED_HOSTS: set in backend/.env (do not hardcode localhost in cloud).
+    depends_on:
+      db:
+        condition: service_healthy
+    # Reachable via nginx on 443; bind API to localhost only on the VPS host.
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+      # Static Next export for https://app.<product>.in (see scripts/deploy_web.cmd)
+      - ./deploy/web:/usr/share/nginx/html:ro
+      # Public marketing site for https://www.<product>.in
+      - ./deploy/www:/usr/share/nginx/www:ro
+
+volumes:
+  pgdata:

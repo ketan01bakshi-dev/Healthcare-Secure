@@ -24,6 +24,9 @@ _RAW_IDENTIFIER_KEYS = frozenset(
         "patient_identifier",
         "patient_id_raw",
         "mrn_raw",
+        "clinic_mrn",
+        "abha_id",
+        "abha_number",
         "patient_name",
         "patient_phone",
     }
@@ -40,13 +43,35 @@ def normalize_phone_digits(phone: str) -> str:
     return p
 
 
-def build_patient_raw_identifier(name: str, phone: str) -> str:
-    """
-    Stable composite key for history linkage: ``name|digits``.
+def normalize_mrn(mrn: str) -> str:
+    """Clinic MRN: strip spaces, uppercase alphanumerics and dashes."""
+    return re.sub(r"[^A-Za-z0-9\-]", "", (mrn or "").strip()).upper()
 
-    Clear-text is only used as HMAC input — never stored on ClinicalRecord.
-    Indian patient mobiles must be exactly 10 digits after normalization.
+
+def normalize_abha_id(abha: str) -> str:
+    """ABHA number: digits only (14-digit form common)."""
+    return re.sub(r"\D+", "", (abha or "").strip())
+
+
+def build_patient_raw_identifier(
+    name: str,
+    phone: str,
+    *,
+    clinic_mrn: str | None = None,
+) -> str:
     """
+    Stable composite key for history linkage.
+
+    Prefer clinic MRN when present (``mrn|{MRN}``) so name/phone changes
+    do not orphan history. Otherwise ``name|10digits``.
+    Clear-text is HMAC input only — never stored on ClinicalRecord.
+    """
+    mrn = normalize_mrn(clinic_mrn or "")
+    if mrn:
+        if len(mrn) < 2:
+            raise ValueError("clinic MRN is too short")
+        return f"mrn|{mrn}"
+
     n = (name or "").strip()
     p = normalize_phone_digits(phone)
     if not n:

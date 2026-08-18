@@ -4,21 +4,21 @@ Two specialty demos on the **same APK and API** — pick the clinic at unlock:
 
 | Demo | Clinic name | Pitch doc |
 |------|-------------|-----------|
-| Gynecology | **Main Clinic** | This file |
+| Gynecology | **Alpha Clinic** | This file |
 | General Physician | **City General Clinic** | [`DEMO_GP.md`](DEMO_GP.md) |
 
 ## Cloud phone (recommended for pitch)
 
 1. Install `share\AarogyaOneConnect-v*.apk`
 2. Clinic server: `https://api.aarogyaoneconnect.in`
-3. Unlock **Main Clinic** (gynae) or **City General Clinic** (GP) — see [`SHARE_PACK.md`](../share/SHARE_PACK.md) for PINs
+3. Unlock **Alpha Clinic** (gynae) or **City General Clinic** (GP) — see [`SHARE_PACK.md`](../share/SHARE_PACK.md) for PINs
 
 ---
 
 ## Local laptop (optional)
 
 Sign in: **Dr. Nirmala Tiwari** · PIN **1234**  
-Also: **Front Desk** · **1111** · staff **Dhanaraj** / **5678** · lab **Lab Desk** / **9999**
+Also: **Front Desk** · **1111** · staff **Staff** / **5678** · lab **Lab Desk** / **9999**
 
 Seed gynae: `scripts\seed_demo.cmd --wipe`  
 Seed GP: `scripts\seed_demo_gp.cmd --wipe`  
@@ -100,6 +100,6 @@ Speak clearly in English (Groq/Whisper). Or use **Load demo script** on Visit if
 - Phone APK must be rebuilt after share-lockdown UI (`scripts\build_share_apk.cmd`)
 - Cloud clinic URL: `https://api.aarogyaoneconnect.in`
 - Credentials: see private `share\SHARE_PACK.md` (do **not** attach to the APK)
-- Clinic password: `ClinicShare2026` · doctor PIN for Main Clinic: `4829`
+- Clinic password: `ClinicShare2026` · doctor PIN for Alpha Clinic: `4829`
 - After frontend changes: rebuild APK — API deploy alone does not update screens
 - General Physician pitch: [`DEMO_GP.md`](DEMO_GP.md)

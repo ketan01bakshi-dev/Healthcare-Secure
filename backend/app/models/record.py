@@ -30,6 +30,12 @@ class ClinicalRecord(Base):
             "blind_patient_id",
             "created_at",
         ),
+        Index(
+            "ix_clinical_records_clinic_blind",
+            "clinic_id",
+            "blind_patient_id",
+            "created_at",
+        ),
     )
 
     # UUID primary key (stable unique record ID).
@@ -37,6 +43,13 @@ class ClinicalRecord(Base):
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+    clinic_id: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="default",
+        index=True,
+        doc="Tenant clinic id — isolates records across multi-clinic installs",
     )
     blind_patient_id: Mapped[str] = mapped_column(
         String(64),

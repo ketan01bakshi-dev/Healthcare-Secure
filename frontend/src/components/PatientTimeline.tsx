@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import CollapsibleSection from "@/components/CollapsibleSection";
 import { usePatient } from "@/context/PatientContext";
 import { formatIst } from "@/lib/datetimeIst";
 import { apiFetch } from "@/lib/doctorSession";
@@ -20,6 +21,9 @@ type EncounterData = {
   title?: string;
   filename?: string;
   has_content?: boolean;
+  amount_inr?: number;
+  note?: string;
+  kind?: string;
   diagnoses?: unknown;
   diagnosis?: unknown;
   clinical_observations?: unknown;
@@ -30,6 +34,7 @@ type EncounterData = {
   transcript_count?: number;
   vitals?: Record<string, string>;
   diagnostic_notes?: string;
+  room_name?: string;
   entered_by?: { user_id?: string; display_name?: string; role?: string };
   signed_by?: { user_id?: string; display_name?: string; role?: string };
 };
@@ -89,6 +94,31 @@ function summarizeNotes(data: EncounterData | null): string {
     }
     return parts.join(" · ") || "Vitals entry";
   }
+  if (data.type === "video_consult") {
+    return data.room_name
+      ? `Video consult · ${data.room_name}`
+      : "Video consult";
+  }
+  if (data.type === "lab_result") {
+    return asStringList(data.clinical_observations).join(" · ") || "Lab result";
+  }
+  if (data.type === "billing") {
+    const amount = data.amount_inr;
+    const note =
+      typeof data.note === "string" && data.note.trim() ? data.note.trim() : "";
+    const kind =
+      data.kind === "payment"
+        ? "Payment"
+        : data.kind === "charge"
+          ? "Charge"
+          : "Bill";
+    const amountText =
+      typeof amount === "number"
+        ? `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`
+        : kind;
+    const labeled = `${kind} ${amountText}`;
+    return note ? `${labeled} — ${note}` : labeled;
+  }
   const observations = asStringList(data.clinical_observations);
   const notes = asStringList(data.clinical_notes);
   const legacyNotes = asStringList(data.notes);
@@ -108,7 +138,11 @@ function actorLabel(data: EncounterData): string | null {
       ? "Doctor"
       : actor.role === "staff"
         ? "Staff"
-        : null;
+        : actor.role === "receptionist"
+          ? "Reception"
+          : actor.role === "lab"
+          ? "Lab"
+          : null;
   return role ? `${name} (${role})` : name;
 }
 
@@ -193,21 +227,15 @@ export default function PatientTimeline() {
   }
 
   return (
-    <section
+    <CollapsibleSection
       aria-label="Patient visit timeline"
       className="mx-auto w-full max-w-3xl rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-8 shadow-lg backdrop-blur-sm sm:px-8"
+      hint="Past visits, prescriptions, and reports for this patient."
+      title="Patient timeline"
+      variant="dark"
     >
-      <header className="mb-6">
-        <h2 className="text-lg font-semibold tracking-tight text-clinical-50 sm:text-xl">
-          Patient timeline
-        </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Past visits, prescriptions, and reports for this patient.
-        </p>
-      </header>
-
       {!locked ? (
-        <p className="mt-4 text-center text-sm text-clinical-100/45">
+        <p className="text-center text-sm text-clinical-100/45">
           Select a patient above to see their history.
         </p>
       ) : null}
@@ -249,9 +277,25 @@ export default function PatientTimeline() {
               ? (data.document_kind || "document").replace(/_/g, " ")
               : isVitals
                 ? "vitals"
-                : data.type === "prescription"
-                  ? "prescription"
-                  : "visit";
+                : data.type === "lab_result"
+                  ? "lab result"
+                  : data.type === "billing"
+                    ? data.kind === "payment"
+                      ? "payment"
+                      : data.kind === "charge"
+                        ? "charge"
+                        : "billing"
+                    : data.type === "health_profile"
+                      ? "health profile"
+                      : data.type === "obstetric_profile"
+                        ? "obstetric"
+                        : data.type === "abha_link"
+                          ? "ABHA"
+                          : data.type === "audit"
+                            ? "activity"
+                            : data.type === "prescription"
+                              ? "prescription"
+                              : "visit";
 
             return (
               <li className="relative" key={record.id}>
@@ -349,6 +393,6 @@ export default function PatientTimeline() {
           })}
         </ol>
       ) : null}
-    </section>
+    </CollapsibleSection>
   );
 }

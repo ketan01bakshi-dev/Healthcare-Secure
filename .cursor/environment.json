@@ -1,0 +1,3 @@
+{
+  "install": "python3 -m pip install -U pip && python3 -m pip install fastapi uvicorn pydantic pydantic-settings sqlalchemy python-dotenv python-multipart pytest httpx fpdf2 tzdata cryptography 'qrcode[pil]' && (cd frontend && npm ci)"
+}

@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import CollapsibleSection from "@/components/CollapsibleSection";
 import { apiFetch } from "@/lib/doctorSession";
+import { useI18n } from "@/lib/i18n";
 
 type RecorderStatus = "idle" | "recording" | "uploading" | "success" | "error";
+type SpeakLanguage = "en" | "hi";
 
 const BAR_COUNT = 20;
 
@@ -41,18 +44,45 @@ function micPermissionHelpMessage(): string {
   );
 }
 
-/** Encode in-memory PCM float samples as a WAV Blob (never written to disk/storage). */
+/** Whisper’s native rate — extra samples do not improve accuracy. */
+const WHISPER_SAMPLE_RATE = 16000;
+
+/** Linear resample to 16 kHz (accuracy-safe; no lossy codec). */
+function resampleToWhisperRate(
+  samples: Float32Array,
+  sourceRate: number,
+): Float32Array {
+  if (!sourceRate || sourceRate === WHISPER_SAMPLE_RATE) {
+    return samples;
+  }
+  const ratio = sourceRate / WHISPER_SAMPLE_RATE;
+  const outLen = Math.max(1, Math.round(samples.length / ratio));
+  const out = new Float32Array(outLen);
+  const last = Math.max(0, samples.length - 1);
+  for (let i = 0; i < outLen; i += 1) {
+    const srcIndex = i * ratio;
+    const i0 = Math.min(last, Math.floor(srcIndex));
+    const i1 = Math.min(last, i0 + 1);
+    const frac = srcIndex - i0;
+    out[i] = (samples[i0] ?? 0) * (1 - frac) + (samples[i1] ?? 0) * frac;
+  }
+  return out;
+}
+
+/** Encode in-memory PCM as 16 kHz 16-bit mono WAV (never written to disk). */
 function encodeWavBlob(
   channelData: Float32Array[],
   sampleRate: number,
 ): Blob {
   const length = channelData.reduce((sum, chunk) => sum + chunk.length, 0);
-  const samples = new Float32Array(length);
+  const concatenated = new Float32Array(length);
   let offset = 0;
   for (const chunk of channelData) {
-    samples.set(chunk, offset);
+    concatenated.set(chunk, offset);
     offset += chunk.length;
   }
+  const samples = resampleToWhisperRate(concatenated, sampleRate);
+  const outRate = WHISPER_SAMPLE_RATE;
 
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
@@ -70,8 +100,8 @@ function encodeWavBlob(
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
+  view.setUint32(24, outRate, true);
+  view.setUint32(28, outRate * 2, true);
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
   writeString(36, "data");
@@ -105,10 +135,15 @@ async function unlockAudioContext(ctx: AudioContext): Promise<void> {
 export default function VoiceRecorder({
   onTranscript,
   disabled = false,
+  embedded = false,
 }: {
-  onTranscript?: (text: string) => void;
+  onTranscript?: (text: string, meta?: { language?: SpeakLanguage }) => void;
   disabled?: boolean;
+  /** Flat light UI for use inside Prescription Capture (no nested card). */
+  embedded?: boolean;
 }) {
+  const { t } = useI18n();
+  const [speakLanguage, setSpeakLanguage] = useState<SpeakLanguage>("en");
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [levels, setLevels] = useState<number[]>(() =>
@@ -193,11 +228,16 @@ export default function VoiceRecorder({
 
   const uploadBlob = useCallback(async (blob: Blob) => {
     setStatus("uploading");
-    setMessage("Converting speech to text…");
+    setMessage(
+      speakLanguage === "hi"
+        ? t("voiceTranslatingToEn")
+        : t("voiceTranscribing"),
+    );
     setTranscript(null);
 
     const form = new FormData();
     form.append("audio", blob, "prescription.wav");
+    form.append("language", speakLanguage);
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 180000);
@@ -218,32 +258,36 @@ export default function VoiceRecorder({
         transcript?: string;
         message?: string;
         provider?: string;
+        source_language?: string;
+        output_language?: string;
       };
       const text = (data.transcript ?? "").trim();
       setStatus("success");
       setTranscript(text || null);
       setMessage(
         text
-          ? "Voice note added."
-          : data.message || "No speech detected. Try again.",
+          ? speakLanguage === "hi"
+            ? t("voiceNoteAddedEn")
+            : t("voiceNoteAdded")
+          : data.message || t("voiceNoSpeech"),
       );
       if (text) {
-        onTranscript?.(text);
+        onTranscript?.(text, { language: speakLanguage });
       }
     } catch (err) {
       const isAbort = err instanceof DOMException && err.name === "AbortError";
       setStatus("error");
       setMessage(
         isAbort
-          ? "That took too long. Try a shorter recording."
+          ? t("voiceTimeout")
           : err instanceof Error
             ? err.message
-            : "Failed to upload recording.",
+            : t("voiceUploadFailed"),
       );
     } finally {
       window.clearTimeout(timeoutId);
     }
-  }, [onTranscript]);
+  }, [onTranscript, speakLanguage, t]);
 
   const stopRecording = useCallback(async () => {
     const ctx = audioContextRef.current;
@@ -285,7 +329,12 @@ export default function VoiceRecorder({
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext;
-      const ctx = new AudioCtx();
+      let ctx: AudioContext;
+      try {
+        ctx = new AudioCtx({ sampleRate: WHISPER_SAMPLE_RATE });
+      } catch {
+        ctx = new AudioCtx();
+      }
       audioContextRef.current = ctx;
       await unlockAudioContext(ctx);
 
@@ -294,6 +343,7 @@ export default function VoiceRecorder({
           echoCancellation: true,
           noiseSuppression: true,
           channelCount: 1,
+          sampleRate: WHISPER_SAMPLE_RATE,
         },
         video: false,
       });
@@ -354,7 +404,7 @@ export default function VoiceRecorder({
         setMessage("Microphone access denied or unavailable.");
       }
     }
-  }, [animateWave, teardownGraph]);
+  }, [animateWave, speakLanguage, teardownGraph]);
 
   const onToggle = useCallback(() => {
     if (disabled || status === "uploading") return;
@@ -373,20 +423,62 @@ export default function VoiceRecorder({
       ? "Stop"
       : "Record";
 
-  return (
-    <section
-      aria-label="Prescription voice recorder"
-      className="mx-auto w-full max-w-md overflow-x-hidden rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-6 shadow-lg backdrop-blur-sm sm:px-6 sm:py-8"
-    >
-      <header className="mb-6 text-center sm:mb-8">
-        <h2 className="text-lg font-semibold tracking-tight text-clinical-50 sm:text-xl">
-          Voice prescription
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-clinical-100/70">
-          Tap Record, speak clearly, then tap Stop.
-        </p>
-      </header>
+  const light = embedded;
+  const busyRecording = isRecording || isUploading;
+  const languageToggle = (
+    <div className="space-y-2">
+      <p
+        className={`text-xs font-medium uppercase tracking-wide ${
+          light ? "text-slate-500" : "text-clinical-100/55"
+        }`}
+      >
+        {t("voiceSpeakLanguage")}
+      </p>
+      <div
+        aria-label={t("voiceSpeakLanguage")}
+        className={`flex rounded-lg border p-1 ${
+          light
+            ? "border-slate-200 bg-slate-100"
+            : "border-clinical-100/20 bg-black/25"
+        }`}
+        role="tablist"
+      >
+        {(["en", "hi"] as const).map((lang) => {
+          const active = speakLanguage === lang;
+          return (
+            <button
+              aria-selected={active}
+              className={`min-h-11 flex-1 rounded-md text-sm font-medium transition-colors disabled:opacity-60 ${
+                active
+                  ? light
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "bg-clinical-500 text-white"
+                  : light
+                    ? "text-slate-600 hover:text-slate-900"
+                    : "text-clinical-100/70"
+              }`}
+              disabled={busyRecording}
+              key={lang}
+              onClick={() => setSpeakLanguage(lang)}
+              role="tab"
+              type="button"
+            >
+              {lang === "en" ? t("voiceLangEnglish") : t("voiceLangHindi")}
+            </button>
+          );
+        })}
+      </div>
+      <p className={`text-sm ${light ? "text-slate-600" : "text-clinical-100/70"}`}>
+        {speakLanguage === "hi"
+          ? t("voiceHintHindi")
+          : t("voiceHintEnglish")}
+      </p>
+    </div>
+  );
 
+  const body = (
+    <>
+      {languageToggle}
       <div
         aria-hidden={!isRecording}
         className="mb-5 flex h-14 max-w-full items-end justify-center gap-0.5 overflow-hidden sm:mb-6 sm:h-20 sm:gap-1.5"
@@ -395,7 +487,11 @@ export default function VoiceRecorder({
           <span
             key={index}
             className={`w-1.5 max-w-[6px] flex-1 rounded-full transition-[height,background-color] duration-75 sm:w-2 sm:flex-none ${
-              isRecording ? "bg-clinical-500" : "bg-clinical-100/25"
+              isRecording
+                ? "bg-clinical-500"
+                : light
+                  ? "bg-slate-200"
+                  : "bg-clinical-100/25"
             }`}
             style={{
               height: `${Math.round(level * 100)}%`,
@@ -409,7 +505,13 @@ export default function VoiceRecorder({
         <time
           aria-live="polite"
           className={`font-mono text-3xl tabular-nums tracking-wider sm:text-4xl ${
-            isRecording ? "text-clinical-50" : "text-clinical-100/50"
+            isRecording
+              ? light
+                ? "text-slate-900"
+                : "text-clinical-50"
+              : light
+                ? "text-slate-400"
+                : "text-clinical-100/50"
           }`}
           dateTime={`PT${elapsed}S`}
         >
@@ -420,7 +522,7 @@ export default function VoiceRecorder({
       <div className="flex justify-center px-2">
         <button
           aria-pressed={isRecording}
-          className={`relative flex h-14 w-14 min-h-12 min-w-12 touch-manipulation items-center justify-center rounded-full text-sm font-semibold text-white transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clinical-100 disabled:cursor-not-allowed disabled:opacity-60 sm:h-28 sm:w-28 sm:text-base ${
+          className={`relative flex h-14 w-14 min-h-12 min-w-12 touch-manipulation items-center justify-center rounded-full text-sm font-semibold text-white transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clinical-500 disabled:cursor-not-allowed disabled:opacity-60 sm:h-28 sm:w-28 sm:text-base ${
             isRecording
               ? "bg-red-600 shadow-[0_0_0_6px_rgba(220,38,38,0.25)] active:bg-red-700"
               : isUploading
@@ -447,26 +549,40 @@ export default function VoiceRecorder({
         aria-live="polite"
         className={`mt-5 min-h-[1.25rem] break-words text-center text-sm ${
           status === "error"
-            ? "text-red-300"
+            ? "text-red-600"
             : status === "success"
-              ? "text-clinical-100"
-              : "text-clinical-100/60"
+              ? light
+                ? "text-emerald-800"
+                : "text-clinical-100"
+              : light
+                ? "text-slate-500"
+                : "text-clinical-100/60"
         }`}
       >
         {isUploading
-          ? "Converting speech to text…"
+          ? speakLanguage === "hi"
+            ? t("voiceTranslatingToEn")
+            : t("voiceTranscribing")
           : (message ?? "\u00a0")}
       </p>
 
       {showMicHelp ? (
         <div
-          className="mt-4 rounded-xl border border-red-400/30 bg-red-950/40 px-4 py-4 text-left shadow-lg"
+          className={
+            light
+              ? "mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-left"
+              : "mt-4 rounded-xl border border-red-400/30 bg-red-950/40 px-4 py-4 text-left shadow-lg"
+          }
           role="alert"
         >
-          <p className="text-sm font-semibold text-red-100">
+          <p
+            className={`text-sm font-semibold ${light ? "text-red-900" : "text-red-100"}`}
+          >
             Enable microphone in phone settings
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-red-100/85">
+          <p
+            className={`mt-2 text-sm leading-relaxed ${light ? "text-red-800" : "text-red-100/85"}`}
+          >
             {micPermissionHelpMessage()}
           </p>
           <button
@@ -480,15 +596,45 @@ export default function VoiceRecorder({
       ) : null}
 
       {transcript ? (
-        <div className="mt-4 max-w-full overflow-hidden rounded-lg border border-clinical-100/15 bg-black/20 px-4 py-3 text-left">
-          <p className="text-xs uppercase tracking-wide text-clinical-100/55">
-            What you said
+        <div
+          className={
+            light
+              ? "mt-4 max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white px-4 py-3 text-left"
+              : "mt-4 max-w-full overflow-hidden rounded-lg border border-clinical-100/15 bg-black/20 px-4 py-3 text-left"
+          }
+        >
+          <p
+            className={`text-xs uppercase tracking-wide ${light ? "text-slate-500" : "text-clinical-100/55"}`}
+          >
+            {t("voiceWhatYouSaidEn")}
           </p>
-          <p className="mt-1 break-words text-sm leading-relaxed text-clinical-50">
+          <p
+            className={`mt-1 break-words text-sm leading-relaxed ${light ? "text-slate-900" : "text-clinical-50"}`}
+          >
             {transcript}
           </p>
         </div>
       ) : null}
-    </section>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div aria-label="Prescription voice recorder" className="space-y-3">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <CollapsibleSection
+      aria-label="Prescription voice recorder"
+      className="mx-auto w-full max-w-md overflow-x-hidden rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-6 shadow-lg backdrop-blur-sm sm:px-6 sm:py-8"
+      hint="Tap Record, speak clearly, then tap Stop."
+      title="Voice prescription"
+      variant="dark"
+    >
+      {body}
+    </CollapsibleSection>
   );
 }

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import CollapsibleSection from "@/components/CollapsibleSection";
 import { apiFetch } from "@/lib/doctorSession";
+import { printAttachmentBlob } from "@/lib/fileActions";
 
 type Props = {
   /** Optional PDF as base64; when omitted, only the URL mint path is unused. */
@@ -12,6 +14,8 @@ type Props = {
   downloadUrl?: string | null;
   /** Clear-text patient phone digits (memory only) for SMS deep-link. */
   patientPhone?: string | null;
+  /** Flat light UI for Prescription wizard Share step. */
+  embedded?: boolean;
 };
 
 function canUseNativeShare(): boolean {
@@ -50,6 +54,7 @@ export default function PrescriptionShare({
   doctorName = "Clinic",
   downloadUrl = null,
   patientPhone = null,
+  embedded = false,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -161,23 +166,52 @@ export default function PrescriptionShare({
     }
   }, [buildMessage, resolveUrl]);
 
-  return (
-    <section
-      aria-label="Share prescription"
-      className="mx-auto w-full max-w-md overflow-x-hidden rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-6 sm:px-6"
-    >
-      <h2 className="text-lg font-semibold tracking-tight text-clinical-50">
-        Share prescription
-      </h2>
-      <p className="mt-2 text-sm text-clinical-100/70">
-        Free delivery via SMS to the patient number, or your phone&apos;s share
-        sheet. No paid SMS gateway.
-      </p>
+  const onPrint = useCallback(async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      let b64 = pdfBase64?.trim() || "";
+      if (!b64 && downloadUrl?.trim()) {
+        const res = await fetch(downloadUrl.trim());
+        if (!res.ok) throw new Error("Could not download PDF for print.");
+        const blob = await res.blob();
+        await printAttachmentBlob(blob, "prescription.pdf");
+        setStatus("Print dialog opened.");
+        return;
+      }
+      if (!b64) throw new Error("No prescription PDF available yet.");
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      await printAttachmentBlob(blob, "prescription.pdf");
+      setStatus("Print dialog opened.");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Print failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [downloadUrl, pdfBase64]);
 
-      <div className="mt-5 flex flex-col gap-3">
+  const secondaryBtn = embedded
+    ? "inline-flex min-h-12 min-w-[48px] items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 transition active:bg-slate-50 disabled:opacity-60"
+    : "inline-flex min-h-12 min-w-[48px] items-center justify-center rounded-lg border border-clinical-100/25 bg-black/20 px-4 text-sm font-medium text-clinical-50 transition active:bg-clinical-900 disabled:opacity-60";
+
+  const actions = (
+    <>
+      <div className="flex flex-col gap-3">
+        <button
+          className="inline-flex min-h-12 items-center justify-center rounded-lg bg-clinical-500 px-4 text-sm font-semibold text-white disabled:opacity-60"
+          disabled={busy}
+          onClick={() => void onPrint()}
+          type="button"
+        >
+          {busy ? "Preparing…" : "Print prescription"}
+        </button>
+
         {patientPhone ? (
           <button
-            className="inline-flex min-h-12 min-w-[48px] items-center justify-center rounded-lg bg-clinical-500 px-4 text-sm font-medium text-white transition active:bg-clinical-700 disabled:opacity-60"
+            className={secondaryBtn}
             disabled={busy}
             onClick={() => void onSmsPatient()}
             type="button"
@@ -188,7 +222,7 @@ export default function PrescriptionShare({
 
         {nativeShare ? (
           <button
-            className="inline-flex min-h-12 min-w-[48px] items-center justify-center rounded-lg border border-clinical-100/25 bg-black/20 px-4 text-sm font-medium text-clinical-50 transition active:bg-clinical-900 disabled:opacity-60"
+            className={secondaryBtn}
             disabled={busy}
             onClick={() => void onNativeShare()}
             type="button"
@@ -198,7 +232,7 @@ export default function PrescriptionShare({
         ) : null}
 
         <button
-          className="inline-flex min-h-12 min-w-[48px] items-center justify-center rounded-lg border border-clinical-100/25 bg-black/20 px-4 text-sm font-medium text-clinical-50 transition active:bg-clinical-900 disabled:opacity-60"
+          className={secondaryBtn}
           disabled={busy}
           onClick={() => void onCopyLink()}
           type="button"
@@ -208,10 +242,35 @@ export default function PrescriptionShare({
       </div>
 
       {status ? (
-        <p className="mt-4 text-sm text-clinical-100/80" role="status">
+        <p
+          className={`mt-4 text-sm ${embedded ? "text-slate-700" : "text-clinical-100/80"}`}
+          role="status"
+        >
           {status}
         </p>
       ) : null}
-    </section>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div aria-label="Share prescription" className="space-y-3">
+        <p className="text-sm text-slate-600">
+          Print for the counter first, then share by SMS if needed.
+        </p>
+        {actions}
+      </div>
+    );
+  }
+
+  return (
+    <CollapsibleSection
+      aria-label="Share prescription"
+      hint="Print for the counter first, then share by SMS if needed."
+      title="Prescription ready"
+      variant="dark"
+    >
+      {actions}
+    </CollapsibleSection>
   );
 }

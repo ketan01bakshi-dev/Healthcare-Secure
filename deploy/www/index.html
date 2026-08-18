@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aarogya One Connect — clinic desk for phones and PCs</title>
+    <meta
+      name="description"
+      content="Multi-clinic OPD software for India: voice to signed prescription, front-desk billing, lab desk, and role-based staff access — on Android and in the browser."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://www.aarogyaoneconnect.in/" />
+    <link rel="icon" href="/logo.png" type="image/png" />
+    <meta property="og:title" content="Aarogya One Connect" />
+    <meta
+      property="og:description"
+      content="Clinic software that works on staff phones and the front-desk PC. Voice Rx, billing QR, lab desk, privacy-first identity."
+    />
+    <meta property="og:url" content="https://www.aarogyaoneconnect.in/" />
+    <meta property="og:image" content="https://www.aarogyaoneconnect.in/logo.png" />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/">
+        <img src="/logo.png" alt="" width="40" height="40" />
+        <span>Aarogya One Connect</span>
+      </a>
+      <nav>
+        <a href="#how">How it works</a>
+        <a href="#roles">Roles</a>
+        <a href="#privacy">Privacy</a>
+        <a class="btn btn-ghost" href="https://app.aarogyaoneconnect.in/">Staff sign-in</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Clinic software · India</p>
+        <h1>The OPD desk that travels with the doctor — and stays on the front desk PC.</h1>
+        <p class="lede">
+          One product for gynecology and GP clinics: lock a patient, take vitals, dictate a
+          prescription, show a UPI QR, send the lab order. Staff phones on 4G. Reception on a
+          browser. Lab on its own desk.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://app.aarogyaoneconnect.in/">Open clinic desk</a>
+          <a class="btn btn-ghost" href="#how">See the workflow</a>
+        </div>
+        <p class="fine">
+          Staff-only. Not a patient portal. Clinics sign in with their own clinic name and roles.
+        </p>
+      </section>
+
+      <section id="how" class="band">
+        <h2>What a visit looks like</h2>
+        <ol class="steps">
+          <li>
+            <strong>Pick the patient</strong>
+            Front desk or doctor opens Patient Info → All patients (name, mobile, or MRN). Waiting
+            list works the same way.
+          </li>
+          <li>
+            <strong>Do the work of that desk</strong>
+            Staff enter vitals. Doctor lands on Visit after lock — voice to a signed Rx PDF, case
+            brief, recommended labs. Lab sees those ticks on another phone.
+          </li>
+          <li>
+            <strong>Close the loop</strong>
+            Charges and UPI QR on Patient Info. Records keep the timeline. Analytics on More —
+            counts, not a hospital warehouse.
+          </li>
+        </ol>
+      </section>
+
+      <section class="grid-3">
+        <article>
+          <h3>Voice to signed Rx</h3>
+          <p>
+            Dictate in the Visit tab. Speech-to-text and a structured parse become a letterhead PDF
+            the doctor reviews and signs. Print or share from the phone.
+          </p>
+        </article>
+        <article>
+          <h3>Front-desk money</h3>
+          <p>
+            Charge ledger on Patient Info. Optional Razorpay UPI QR so the patient pays without a
+            WhatsApp screenshot of someone else’s UPI app.
+          </p>
+        </article>
+        <article>
+          <h3>Lab without the Rx pad</h3>
+          <p>
+            Lab Desk is Today, Labs, and More — results and PDFs only. Visit ticks persist on the
+            patient so a second device sees the order list.
+          </p>
+        </article>
+      </section>
+
+      <section id="roles" class="band">
+        <h2>Four desks, one clinic</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Sees</th>
+              <th>Does not</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Doctor</td>
+              <td>Patient Info, Vitals, Records, Visit, More</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>Staff</td>
+              <td>Patient Info, Vitals, Records, More</td>
+              <td>Sign prescriptions</td>
+            </tr>
+            <tr>
+              <td>Receptionist</td>
+              <td>Patient Info, billing, appointments, More</td>
+              <td>Visit / Rx</td>
+            </tr>
+            <tr>
+              <td>Lab</td>
+              <td>Today, Labs, More</td>
+              <td>Billing, Visit</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="privacy" class="split">
+        <div>
+          <h2>Identity that does not leave a phone column</h2>
+          <p>
+            Staff still type a name, mobile, or MRN. The API stores a keyed hash (blind ID), not a
+            searchable phone book. Clinics are isolated by clinic ID on one shared cloud API.
+          </p>
+          <p>
+            This is a staff tool. There is no advertising SDK and no consumer “my reports” login.
+          </p>
+          <p><a href="/privacy.html">Privacy notice</a></p>
+        </div>
+        <aside>
+          <h3>Where it runs</h3>
+          <ul>
+            <li>Android app for doctors and lab</li>
+            <li>Browser desk for receptionist and staff</li>
+            <li>HTTPS API in Mumbai — phones on mobile data</li>
+          </ul>
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2026 Aarogya One Connect. Clinic staff software.</p>
+      <p>
+        <a href="https://app.aarogyaoneconnect.in/">Staff sign-in</a>
+        ·
+        <a href="/privacy.html">Privacy</a>
+      </p>
+    </footer>
+  </body>
+</html>

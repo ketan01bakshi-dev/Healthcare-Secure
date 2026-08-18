@@ -309,6 +309,9 @@ def generate_prescription_pdf(
     doctor_name: str | None = None,
     doctor_credentials: str | None = None,
     issued_at: datetime | None = None,
+    patient_name: str | None = None,
+    clinic_mrn: str | None = None,
+    patient_age_years: float | None = None,
 ) -> io.BytesIO:
     """
     Compile a prescription PDF from the clinic letterhead template.
@@ -381,21 +384,48 @@ def generate_prescription_pdf(
     pdf.cell(0, 4, f"Timestamp: {issued_iso}", ln=True)
     pdf.ln(2)
 
-    # Anonymous patient token
+    from app.services.clinic_patients import format_age_label
+
+    # Patient block — MRN + name + age on letterhead (clinic use)
     pdf.set_fill_color(232, 242, 241)
     pdf.set_draw_color(61, 155, 148)
     pdf.set_line_width(0.5)
     box_y = pdf.get_y()
-    pdf.rect(16, box_y, 178, 18, style="DF")
+    mrn_print = (clinic_mrn or "").strip()
+    name_print = (patient_name or "").strip()
+    age_print = format_age_label(patient_age_years)
+    extra = 0
+    if mrn_print or name_print:
+        extra += 4
+    if age_print:
+        extra += 5
+    box_h = 18 + extra
+    pdf.rect(16, box_y, 178, box_h, style="DF")
     pdf.set_xy(20, box_y + 3)
     pdf.set_font("Helvetica", "B", 8)
     pdf.set_text_color(30, 82, 78)
-    pdf.cell(0, 4, "ANONYMOUS PATIENT TOKEN", ln=True)
+    pdf.cell(0, 4, "PATIENT", ln=True)
     pdf.set_x(20)
-    pdf.set_font("Courier", "B", 11)
+    pdf.set_font("Helvetica", "B", 12)
     pdf.set_text_color(20, 40, 40)
-    pdf.multi_cell(170, 5, token)
-    pdf.set_y(box_y + 22)
+    if mrn_print:
+        pdf.cell(0, 6, f"MRN: {mrn_print}", ln=True)
+    if name_print:
+        pdf.set_x(20)
+        pdf.set_font("Helvetica", "", 11)
+        line = name_print
+        if age_print:
+            line = f"{name_print}  ·  Age: {age_print}"
+        pdf.cell(0, 5, _pdf_safe(line, 90), ln=True)
+    elif age_print:
+        pdf.set_x(20)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.cell(0, 5, f"Age: {age_print}", ln=True)
+    if not mrn_print and not name_print and not age_print:
+        pdf.set_x(20)
+        pdf.set_font("Courier", "B", 10)
+        pdf.multi_cell(170, 5, (patient_token or "")[:16] + "…")
+    pdf.set_y(box_y + box_h + 4)
     pdf.set_x(pdf.l_margin)
 
     _section_title(pdf, "Symptoms")
@@ -415,6 +445,346 @@ def generate_prescription_pdf(
     _medication_table(pdf, clinical)
 
     _signature_block(pdf, issued_human=issued_human)
+
+    buffer = io.BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def _pdf_safe(text: str, limit: int = 400) -> str:
+    """Helvetica core fonts are Latin-1; strip unsupported glyphs."""
+    raw = (text or "").replace("\r", " ").strip()
+    if not raw:
+        return ""
+    # Common punctuation that breaks Helvetica
+    raw = (
+        raw.replace("\u2014", "-")
+        .replace("\u2013", "-")
+        .replace("\u2018", "'")
+        .replace("\u2019", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
+        .replace("\u2026", "...")
+    )
+    cleaned = raw.encode("latin-1", errors="replace").decode("latin-1")
+    return cleaned[:limit]
+
+
+def _safe_bullets(items: list[str], empty_label: str) -> tuple[list[str], str]:
+    return [_pdf_safe(x, 500) for x in items if str(x).strip()], _pdf_safe(empty_label, 120)
+
+
+def _kv_line(pdf: FPDF, label: str, value: str) -> None:
+    pdf.set_x(pdf.l_margin)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(30, 82, 78)
+    pdf.cell(36, 5, _pdf_safe(label, 32))
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(30, 30, 30)
+    pdf.multi_cell(0, 5, _pdf_safe(value, 500))
+
+
+def generate_referral_pdf(
+    summary: dict,
+    *,
+    clinic_name: str,
+    clinic_subtitle: str = "",
+    clinic_address: str = "",
+    referring_doctor: str,
+    patient_display_name: str,
+    clinic_mrn: str = "",
+    note: str = "",
+    recipient_name: str = "",
+    issued_at: datetime | None = None,
+) -> io.BytesIO:
+    """
+    Single referral PDF from a case-summary dict (no attachment bytes).
+
+    For clinical referral — verify against chart.
+    """
+    issued = issued_at or _now_local()
+    if issued.tzinfo is None:
+        issued = issued.replace(tzinfo=_resolve_tzinfo(settings.prescription_timezone))
+    issued_human, issued_iso = _format_issued(issued)
+
+    name = (clinic_name or settings.clinic_name or settings.app_name).strip()
+    subtitle = (
+        clinic_subtitle
+        or settings.clinic_subtitle
+        or "Clinical referral summary"
+    ).strip()
+    address = (clinic_address or settings.clinic_address or "").strip()
+    doctor = (referring_doctor or settings.doctor_name or "Attending Clinician").strip()
+
+    letter_cfg = (settings.prescription_letterhead_path or "").strip()
+    letterhead_path = Path(letter_cfg) if letter_cfg else _DEFAULT_LETTERHEAD
+    if not letterhead_path.is_file():
+        letterhead_path = None
+
+    pdf = _PrescriptionPDF(
+        clinic_name=name,
+        clinic_subtitle=subtitle,
+        clinic_address=address,
+        doctor_name=doctor,
+        doctor_credentials=(settings.doctor_credentials or "").strip(),
+        letterhead_path=letterhead_path,
+        seal_path=None,
+    )
+    pdf.alias_nb_pages()
+    pdf.add_page()
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(20, 56, 54)
+    pdf.cell(0, 8, "CASE HISTORY REFERRAL", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(90, 90, 90)
+    pdf.cell(0, 5, f"Generated: {issued_human}", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(0, 4, f"Timestamp: {issued_iso}", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+
+    pdf.set_fill_color(232, 242, 241)
+    pdf.set_draw_color(61, 155, 148)
+    box_y = pdf.get_y()
+    pdf.rect(16, box_y, 178, 24, style="DF")
+    pdf.set_xy(20, box_y + 3)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_text_color(30, 82, 78)
+    pdf.cell(0, 4, "PATIENT", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_x(20)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_text_color(20, 40, 40)
+    pdf.cell(0, 6, _pdf_safe(patient_display_name or "Patient", 80), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_x(20)
+    pdf.set_font("Helvetica", "", 10)
+    bits = []
+    if (clinic_mrn or "").strip():
+        bits.append(f"MRN: {clinic_mrn.strip()}")
+    bits.append(f"Referring: {doctor}")
+    if (recipient_name or "").strip():
+        bits.append(f"To: {recipient_name.strip()}")
+    pdf.cell(0, 5, _pdf_safe("  |  ".join(bits), 120), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_y(box_y + 28)
+
+    if (note or "").strip():
+        _section_title(pdf, "Referral note")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5.5, _pdf_safe(note.strip(), 1200))
+
+    narrative = str(summary.get("narrative") or "").strip()
+    if narrative:
+        _section_title(pdf, "Narrative")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5.5, _pdf_safe(narrative, 1500))
+
+    obst = summary.get("obstetric") if isinstance(summary.get("obstetric"), dict) else {}
+    ga = str(summary.get("gestational_age") or "").strip()
+    has_obstetric_data = bool(
+        ga
+        or any(
+            str(obst.get(k) or "").strip()
+            for k in (
+                "lmp",
+                "edd",
+                "gravida",
+                "para",
+                "abortions",
+                "living",
+                "blood_group",
+                "rh",
+                "high_risk_notes",
+            )
+        )
+    )
+    if has_obstetric_data:
+        _section_title(pdf, "Obstetric profile")
+        if ga:
+            _kv_line(pdf, "Gestation", ga)
+        for key, label in (
+            ("lmp", "LMP"),
+            ("edd", "EDD"),
+            ("gravida", "G"),
+            ("para", "P"),
+            ("abortions", "A"),
+            ("living", "L"),
+            ("blood_group", "Blood"),
+            ("rh", "Rh"),
+            ("high_risk_notes", "High risk"),
+        ):
+            val = str(obst.get(key) or "").strip()
+            if val:
+                _kv_line(pdf, label, val)
+
+    vitals = summary.get("vitals_latest") if isinstance(summary.get("vitals_latest"), dict) else {}
+    if vitals:
+        _section_title(pdf, "Latest vitals")
+        parts = []
+        for key, label in (
+            ("systolic", "Sys"),
+            ("diastolic", "Dia"),
+            ("weight", "Wt"),
+            ("hemoglobin", "Hb"),
+            ("pulse", "Pulse"),
+            ("temperature", "Temp"),
+        ):
+            val = vitals.get(key)
+            if val is not None and str(val).strip():
+                parts.append(f"{label} {val}")
+        lines, empty = _safe_bullets(
+            ["  ".join(parts)] if parts else [],
+            "No vitals recorded.",
+        )
+        _bullet_list(pdf, lines, empty)
+
+    trends = summary.get("vitals_trends") if isinstance(summary.get("vitals_trends"), dict) else {}
+    if trends:
+        trend_lines = []
+        for field, meta in trends.items():
+            if not isinstance(meta, dict):
+                continue
+            latest = meta.get("latest")
+            delta = meta.get("delta")
+            direction = meta.get("direction") or ""
+            if latest is None:
+                continue
+            bit = f"{field}: {latest}"
+            if delta is not None:
+                bit += f" (delta {delta}"
+                if direction:
+                    bit += f", {direction}"
+                bit += ")"
+            trend_lines.append(bit)
+        if trend_lines:
+            _section_title(pdf, "Vital trends")
+            lines, empty = _safe_bullets(trend_lines, "No trends.")
+            _bullet_list(pdf, lines, empty)
+
+    alerts = summary.get("alerts") if isinstance(summary.get("alerts"), list) else []
+    alert_lines = []
+    for a in alerts:
+        if isinstance(a, dict):
+            alert_lines.append(str(a.get("message") or a.get("code") or a).strip())
+        else:
+            alert_lines.append(str(a).strip())
+    alert_lines = [x for x in alert_lines if x]
+    if alert_lines:
+        _section_title(pdf, "Alerts")
+        lines, empty = _safe_bullets(alert_lines, "None.")
+        _bullet_list(pdf, lines, empty)
+
+    labs = summary.get("labs_recent") if isinstance(summary.get("labs_recent"), list) else []
+    lab_lines = []
+    for lab in labs[:8]:
+        if not isinstance(lab, dict):
+            continue
+        title = str(lab.get("title") or lab.get("name") or "Lab").strip()
+        when = str(lab.get("at") or "")[:10]
+        results = lab.get("results") or lab.get("values")
+        detail = ""
+        if isinstance(results, dict):
+            detail = ", ".join(f"{k}={v}" for k, v in list(results.items())[:6])
+        elif isinstance(results, list):
+            detail = "; ".join(str(x) for x in results[:6])
+        elif results:
+            detail = str(results)
+        lab_lines.append(f"{when} {title}: {detail}".strip(": "))
+    if lab_lines:
+        _section_title(pdf, "Recent labs")
+        lines, empty = _safe_bullets(lab_lines, "None.")
+        _bullet_list(pdf, lines, empty)
+
+    docs = summary.get("documents_recent") if isinstance(summary.get("documents_recent"), list) else []
+    doc_lines = []
+    for doc in docs[:6]:
+        if not isinstance(doc, dict):
+            continue
+        title = str(doc.get("title") or doc.get("filename") or "Document").strip()
+        kind = str(doc.get("document_kind") or doc.get("kind") or "").strip()
+        findings = doc.get("findings")
+        finding_s = ""
+        if isinstance(findings, dict):
+            finding_s = str(findings.get("summary") or "").strip()
+        elif isinstance(findings, str):
+            finding_s = findings.strip()
+        label = f"{title}"
+        if kind:
+            label += f" ({kind})"
+        if finding_s:
+            label += f" - {finding_s}"
+        doc_lines.append(label)
+    if doc_lines:
+        _section_title(pdf, "Recent documents")
+        lines, empty = _safe_bullets(doc_lines, "None.")
+        _bullet_list(pdf, lines, empty)
+
+    comments = summary.get("doctor_comments") if isinstance(summary.get("doctor_comments"), list) else []
+    comment_lines = []
+    for c in comments[:10]:
+        if isinstance(c, dict):
+            who = str(c.get("by") or c.get("author") or "").strip()
+            text = str(c.get("text") or c.get("note") or "").strip()
+            when = str(c.get("at") or "")[:10]
+            line = " - ".join(x for x in (when, who, text) if x)
+            if line:
+                comment_lines.append(line)
+        elif str(c).strip():
+            comment_lines.append(str(c).strip())
+    if comment_lines:
+        _section_title(pdf, "Doctor comments")
+        lines, empty = _safe_bullets(comment_lines, "None.")
+        _bullet_list(pdf, lines, empty)
+
+    last_rx = summary.get("last_prescription") if isinstance(summary.get("last_prescription"), dict) else {}
+    if last_rx:
+        _section_title(pdf, "Last prescription")
+        dx = last_rx.get("diagnoses") if isinstance(last_rx.get("diagnoses"), list) else []
+        meds = last_rx.get("medications") if isinstance(last_rx.get("medications"), list) else []
+        if dx:
+            lines, empty = _safe_bullets(
+                [f"Dx: {', '.join(str(x) for x in dx[:8])}"],
+                "",
+            )
+            _bullet_list(pdf, lines, empty)
+        med_lines = []
+        for m in meds[:12]:
+            if isinstance(m, dict):
+                med_lines.append(
+                    " ".join(
+                        str(x)
+                        for x in (
+                            m.get("name"),
+                            m.get("dosage"),
+                            m.get("frequency"),
+                            m.get("duration"),
+                        )
+                        if x
+                    ).strip()
+                )
+            else:
+                med_lines.append(str(m))
+        if med_lines:
+            lines, empty = _safe_bullets(med_lines, "No medications.")
+            _bullet_list(pdf, lines, empty)
+        elif not dx:
+            _bullet_list(pdf, [], "No prescription details.")
+
+    next_appt = summary.get("next_appointment") if isinstance(summary.get("next_appointment"), dict) else None
+    if next_appt:
+        _section_title(pdf, "Next appointment")
+        when = str(next_appt.get("scheduled_at") or "").strip()
+        reason = str(next_appt.get("reason") or "").strip()
+        lines, empty = _safe_bullets([f"{when} {reason}".strip()], "None.")
+        _bullet_list(pdf, lines, empty)
+
+    _section_title(pdf, "Disclaimer")
+    disclaimer = str(
+        summary.get("disclaimer")
+        or "For clinical referral only. Verify against the full chart and clinical judgment."
+    ).strip()
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(90, 90, 90)
+    pdf.multi_cell(0, 4.5, _pdf_safe(disclaimer, 800))
 
     buffer = io.BytesIO()
     pdf.output(buffer)

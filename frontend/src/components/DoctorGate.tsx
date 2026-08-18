@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   type ClinicFeature,
@@ -41,8 +42,8 @@ type ForgotStep = "clinic" | "doctor" | "password" | null;
 
 function roleLabel(role: ClinicRole): string {
   if (role === "doctor") return "Doctor";
-  if (role === "lab") return "Lab";
-  if (role === "receptionist") return "Receptionist";
+  if (role === "lab") return "Lab Desk";
+  if (role === "receptionist") return "Front Desk";
   return "Staff";
 }
 
@@ -53,8 +54,59 @@ function roleHint(role: ClinicRole): string {
   return "Patient Info, Vitals, Records, and More";
 }
 
+/** Sign-in profile order: Front Desk → Staff → Doctor → Lab Desk */
+const SIGN_IN_ROLE_ORDER: Record<ClinicRole, number> = {
+  receptionist: 0,
+  staff: 1,
+  doctor: 2,
+  lab: 3,
+};
+
+function sortUsersForSignIn(users: ClinicUserInfo[]): ClinicUserInfo[] {
+  return [...users].sort((a, b) => {
+    const ra = SIGN_IN_ROLE_ORDER[a.role] ?? 99;
+    const rb = SIGN_IN_ROLE_ORDER[b.role] ?? 99;
+    if (ra !== rb) return ra - rb;
+    return (a.display_name || "").localeCompare(b.display_name || "");
+  });
+}
+
+function BrandLogoTile() {
+  return (
+    <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-300 bg-slate-200/40 px-6 py-7 text-center shadow-sm">
+      <img
+        alt=""
+        className="h-16 w-16 object-contain sm:h-20 sm:w-20"
+        height={80}
+        src="/aarogya-one-connect-logo.png"
+        width={80}
+      />
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+        Aarogya One Connect
+      </h1>
+    </div>
+  );
+}
+
+function AlphaClinicLogoCorner() {
+  return (
+    <img
+      alt="Alpha Clinic"
+      className="pointer-events-none absolute right-1 top-4 z-10 h-14 w-14 rounded-full object-cover sm:right-2 sm:top-5 sm:h-16 sm:w-16"
+      height={64}
+      src="/alpha-clinic-logo.png"
+      width={64}
+    />
+  );
+}
+
+function isAlphaClinic(name: string): boolean {
+  return name.trim().toLowerCase() === "alpha clinic";
+}
+
 export default function DoctorGate({ children }: Props) {
   const { t } = useI18n();
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [clinicGate, setClinicGateState] = useState<ClinicGate | null>(null);
@@ -120,11 +172,12 @@ export default function DoctorGate({ children }: Props) {
 
       const existingGate = getClinicGate();
       setClinicGateState(existingGate);
-      if (existingGate?.users?.[0]) {
+      if (existingGate?.users?.length) {
+        const ordered = sortUsersForSignIn(existingGate.users);
         setUserId((prev) =>
-          existingGate.users.some((u) => u.user_id === prev)
+          ordered.some((u) => u.user_id === prev)
             ? prev
-            : existingGate.users[0].user_id,
+            : ordered[0]?.user_id || "",
         );
       }
 
@@ -198,7 +251,8 @@ export default function DoctorGate({ children }: Props) {
         setClinicGateState(gate);
         setClinicPassword("");
         setShowClinicPassword(false);
-        if (gate.users[0]) setUserId(gate.users[0].user_id);
+        const ordered = sortUsersForSignIn(gate.users);
+        if (ordered[0]) setUserId(ordered[0].user_id);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Clinic unlock failed");
       } finally {
@@ -224,13 +278,14 @@ export default function DoctorGate({ children }: Props) {
         setActiveUser(user);
         setUnlocked(true);
         setPin("");
+        router.replace("/today/");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sign-in failed");
       } finally {
         setBusy(false);
       }
     },
-    [clinicGate, pin, userId],
+    [clinicGate, pin, router, userId],
   );
 
   const onLock = useCallback(async () => {
@@ -395,20 +450,9 @@ export default function DoctorGate({ children }: Props) {
       return (
         <section
           aria-label="Forgot clinic password"
-          className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center gap-6 px-1 py-6"
+          className="relative mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center gap-6 px-1 py-6"
         >
-          <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-300 bg-slate-200/40 px-6 py-7 text-center shadow-sm">
-            <img
-              alt="Aarogya One Connect logo"
-              className="h-24 w-24 object-contain sm:h-28 sm:w-28"
-              height={112}
-              src="/aarogya-one-connect-logo.png"
-              width={112}
-            />
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-              Aarogya One Connect
-            </h1>
-          </div>
+          <BrandLogoTile />
 
           {forgotStep === "clinic" ? (
             <form className={tile} onSubmit={onForgotPreview}>
@@ -426,7 +470,7 @@ export default function DoctorGate({ children }: Props) {
                   autoCapitalize="words"
                   className={field}
                   onChange={(e) => setForgotClinicName(e.target.value)}
-                  placeholder="Main Clinic"
+                  placeholder="Alpha Clinic"
                   value={forgotClinicName}
                 />
               </label>
@@ -606,20 +650,9 @@ export default function DoctorGate({ children }: Props) {
       return (
         <section
           aria-label="Clinic unlock"
-          className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center gap-6 px-1 py-6"
+          className="relative mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center gap-6 px-1 py-6"
         >
-          <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-300 bg-slate-200/40 px-6 py-7 text-center shadow-sm">
-            <img
-              alt="Aarogya One Connect logo"
-              className="h-24 w-24 object-contain sm:h-28 sm:w-28"
-              height={112}
-              src="/aarogya-one-connect-logo.png"
-              width={112}
-            />
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-              Aarogya One Connect
-            </h1>
-          </div>
+          <BrandLogoTile />
 
           <form
             className="flex flex-col gap-4 rounded-2xl border border-slate-300 bg-slate-200/40 px-5 py-6 shadow-sm"
@@ -667,7 +700,7 @@ export default function DoctorGate({ children }: Props) {
                 autoCapitalize="words"
                 className="mt-2 min-h-12 w-full rounded-lg border-0 bg-white px-4 text-sm text-slate-900 outline-none ring-2 ring-transparent focus:ring-slate-400"
                 onChange={(e) => setClinicName(e.target.value)}
-                placeholder="Main Clinic"
+                placeholder="Alpha Clinic"
                 value={clinicName}
               />
             </label>
@@ -768,19 +801,20 @@ export default function DoctorGate({ children }: Props) {
     }
 
     // Step 2 — profile + personal PIN
-    const clinicUsers = clinicGate.users;
+    const clinicUsers = sortUsersForSignIn(clinicGate.users);
     const selected =
       clinicUsers.find((u) => u.user_id === userId) ?? clinicUsers[0] ?? null;
 
     return (
       <section
         aria-label="Clinic sign-in"
-        className="mx-auto flex w-full max-w-md flex-col px-1 py-4"
+        className="relative mx-auto flex w-full max-w-md flex-col px-1 py-4"
       >
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-500">
+        {isAlphaClinic(clinicGate.name) ? <AlphaClinicLogoCorner /> : null}
+        <p className="pr-16 text-sm uppercase tracking-[0.2em] text-slate-500 sm:pr-20">
           Aarogya One Connect
         </p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">
+        <h1 className="mt-4 pr-16 text-3xl font-semibold tracking-tight text-slate-900 sm:pr-20">
           Sign in
         </h1>
         <p className="mt-2 text-base text-slate-600">

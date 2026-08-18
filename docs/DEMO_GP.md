@@ -68,9 +68,9 @@ Credentials live in private `share\SHARE_PACK.md` — send the APK alone; send P
 
 ## 4) vs Gynecology clinic
 
-| | Main Clinic (gynae) | City General Clinic (GP) |
+| | Alpha Clinic (gynae) | City General Clinic (GP) |
 |--|---------------------|--------------------------|
-| Unlock name | Main Clinic | City General Clinic |
+| Unlock name | Alpha Clinic | City General Clinic |
 | Obstetric profile | Yes | Hidden |
 | Case brief / ANC | Yes | Hidden |
 | Demo scripts | Dysmenorrhea, ANC, PCOS | URTI, DM, HTN |

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -25,7 +26,10 @@ from app.services.lml_parser import (
 from app.services.pdf_generator import generate_prescription_pdf, prescription_issue_timestamp
 from app.services.presigned_url import resolve_presigned_prescription
 from app.services.security import tokenize_patient_identifier
-from app.services.transcription import transcribe_audio_buffer
+from app.services.transcription import (
+    normalize_speak_language,
+    transcribe_audio_buffer,
+)
 
 router = APIRouter(prefix="/prescription")
 
@@ -59,6 +63,9 @@ class WritePrescriptionRequest(BaseModel):
 
     Prefer sending edited ``clinical`` after ``/parse``. Legacy clients may still
     send ``transcripts`` alone — the server will parse then write in one step.
+
+    Optional ``parsed_clinical`` + ``transcripts`` enable de-identified
+    correction memory (not stored on the clinical record itself).
     """
 
     raw_identifier: str = Field(
@@ -68,6 +75,8 @@ class WritePrescriptionRequest(BaseModel):
     transcripts: list[str] = Field(default_factory=list)
     transcript_count: int | None = Field(default=None, ge=0)
     clinical: dict[str, Any] | None = None
+    parsed_clinical: dict[str, Any] | None = None
+    source_language: str = Field(default="en", max_length=8)
 
     @field_validator("raw_identifier")
     @classmethod
@@ -114,10 +123,23 @@ def _clinical_from_payload(payload: dict[str, Any]) -> ClinicalParseResult:
 
 @router.post("/transcribe")
 async def transcribe_prescription_audio(
-    _auth: DoctorOnly,
+    auth: DoctorOnly,
+    db: Session = Depends(get_db),
     audio: UploadFile = File(..., description="Recorded prescription audio"),
+    language: str = Form(
+        "en",
+        description="Spoken language: en (English) or hi (Hindi→English)",
+    ),
 ) -> dict[str, str | int]:
-    """Accept prescription audio and return a Whisper transcript (in-memory only)."""
+    """Accept prescription audio and return an English Whisper transcript."""
+    try:
+        source_language = normalize_speak_language(language)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
     filename = audio.filename or "prescription.wav"
     content_type = audio.content_type or "audio/wav"
 
@@ -148,7 +170,17 @@ async def transcribe_prescription_audio(
         memory_buffer.seek(0)
 
         try:
-            transcript = transcribe_audio_buffer(memory_buffer)
+            from app.services.stt_memory import load_clinic_alias_map
+
+            alias_map = load_clinic_alias_map(db, auth.clinic_id)
+            transcript = await asyncio.to_thread(
+                transcribe_audio_buffer,
+                memory_buffer,
+                source_language=source_language,
+                clinic_id=auth.clinic_id,
+                db=None,
+                alias_map=alias_map,
+            )
         except RuntimeError as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -179,8 +211,14 @@ async def transcribe_prescription_audio(
             "content_type": content_type,
             "bytes_received": total,
             "provider": settings.whisper_provider,
+            "source_language": source_language,
+            "output_language": "en",
             "transcript": transcript,
-            "message": "Transcription complete",
+            "message": (
+                "Hindi translated to English"
+                if source_language == "hi"
+                else "Transcription complete"
+            ),
         }
     finally:
         try:
@@ -196,14 +234,17 @@ async def transcribe_prescription_audio(
 @router.post("/parse")
 def parse_prescription(
     body: ParsePrescriptionRequest,
-    _auth: DoctorOnly,
+    auth: DoctorOnly,
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Parse transcripts into structured clinical fields for review-before-sign."""
     consolidated = "\n\n---\n\n".join(
         f"[Segment {i + 1}]\n{text}" for i, text in enumerate(body.transcripts)
     )
     try:
-        clinical = parse_clinical_transcript(consolidated)
+        clinical = parse_clinical_transcript(
+            consolidated, clinic_id=auth.clinic_id, db=db
+        )
     except PHIContentError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -233,8 +274,53 @@ def write_prescription(
     Persist de-identified ClinicalRecord + PDF from doctor-reviewed clinical data.
     Raw transcripts are never stored — only a count. Doctor-only (sign & seal).
     """
+    from app.models.clinic_patient import ClinicPatient
+    from app.services.mrn_identity import resolve_patient_identity
+    from app.services.security import normalize_mrn
+
+    patient_name = ""
+    clinic_mrn = ""
+    patient_age_years = None
     try:
-        blind_id = tokenize_patient_identifier(body.raw_identifier)
+        raw = body.raw_identifier.strip()
+        if raw.startswith("mrn|"):
+            clinic_mrn = normalize_mrn(raw.split("|", 1)[1])
+            blind_id = tokenize_patient_identifier(raw)
+            row = db.get(ClinicPatient, (session.clinic_id, blind_id))
+            if row is None and clinic_mrn:
+                from app.services.mrn_identity import find_patient_by_mrn
+
+                row = find_patient_by_mrn(db, session.clinic_id, clinic_mrn)
+            if row is not None:
+                patient_name = row.display_name or ""
+                clinic_mrn = row.clinic_mrn or clinic_mrn
+                if row.age_years is not None:
+                    patient_age_years = float(row.age_years)
+        elif "|" in raw:
+            name_part, phone_part = raw.split("|", 1)
+            resolved = resolve_patient_identity(
+                db,
+                clinic_id=session.clinic_id,
+                patient_name=name_part,
+                patient_phone=phone_part,
+                actor={
+                    "user_id": session.user_id,
+                    "display_name": session.display_name,
+                    "role": session.role,
+                },
+                bump_visit=False,
+            )
+            blind_id = resolved.blind_patient_id
+            patient_name = resolved.display_name
+            clinic_mrn = resolved.clinic_mrn
+            db.commit()
+            from app.models.clinic_patient import ClinicPatient as _CP
+
+            prow = db.get(_CP, (session.clinic_id, blind_id))
+            if prow is not None and prow.age_years is not None:
+                patient_age_years = float(prow.age_years)
+        else:
+            blind_id = tokenize_patient_identifier(raw)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -257,7 +343,9 @@ def write_prescription(
             f"[Segment {i + 1}]\n{text}" for i, text in enumerate(cleaned)
         )
         try:
-            clinical = parse_clinical_transcript(consolidated)
+            clinical = parse_clinical_transcript(
+                consolidated, clinic_id=session.clinic_id, db=db
+            )
         except PHIContentError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -282,6 +370,9 @@ def write_prescription(
             patient_token=blind_id,
             doctor_name=doctor,
             issued_at=issued,
+            patient_name=patient_name or None,
+            clinic_mrn=clinic_mrn or None,
+            patient_age_years=patient_age_years,
         )
         pdf_bytes = pdf_buffer.getvalue()
     except PHIContentError as exc:
@@ -300,6 +391,8 @@ def write_prescription(
         "type": "prescription",
         "doctor_name": doctor,
         "clinic_name": settings.clinic_name,
+        "clinic_mrn": clinic_mrn or None,
+        "patient_age_years": patient_age_years,
         "issued_at": issued_iso,
         "issued_at_display": issued_human,
         "transcript_count": int(transcript_count or 0),
@@ -315,10 +408,39 @@ def write_prescription(
     }
 
     record = ClinicalRecord(
+        clinic_id=session.clinic_id,
         blind_patient_id=blind_id,
         encounter_data=encounter,
     )
     db.add(record)
+
+    # Correction memory: transcripts + parse→final diff (not on clinical_records).
+    try:
+        from app.services.stt_memory import store_correction_feedback
+
+        feedback_transcripts = [
+            t.strip()
+            for t in (body.transcripts or [])
+            if isinstance(t, str) and t.strip()
+        ]
+        if body.parsed_clinical or feedback_transcripts:
+            store_correction_feedback(
+                db,
+                clinic_id=session.clinic_id,
+                blind_patient_id=blind_id,
+                transcripts=feedback_transcripts,
+                parsed_clinical=body.parsed_clinical,
+                final_clinical={
+                    "symptoms": clinical.symptoms,
+                    "clinical_observations": clinical.clinical_observations,
+                    "diagnoses": clinical.diagnoses,
+                    "medications": [m.model_dump() for m in clinical.medications],
+                },
+                source_language=body.source_language or "en",
+            )
+    except Exception:  # noqa: BLE001
+        pass
+
     db.commit()
     db.refresh(record)
 
@@ -329,6 +451,7 @@ def write_prescription(
         "status": "ok",
         "record_id": str(record.id),
         "blind_patient_id": blind_id,
+        "clinic_mrn": clinic_mrn or None,
         "pdf_base64": pdf_b64,
         "download_url": share["download_url"],
         "expires_at": share["expires_at"],

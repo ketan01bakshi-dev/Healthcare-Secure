@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import CollapsibleSection from "@/components/CollapsibleSection";
 import { apiFetch } from "@/lib/doctorSession";
 import { usePatient } from "@/context/PatientContext";
 import { formatIst } from "@/lib/datetimeIst";
@@ -21,6 +22,7 @@ type EncounterData = {
   has_content?: boolean;
   issued_at_display?: string;
   diagnoses?: unknown;
+  findings?: { summary?: string; [key: string]: unknown } | null;
 };
 
 type HistoryRecord = {
@@ -36,6 +38,7 @@ type AttachmentItem = {
   subtitle: string;
   createdAt: string | null;
   issuedDisplay: string | null;
+  findingsSummary: string | null;
 };
 
 function attachmentLabel(data: EncounterData | null): {
@@ -125,14 +128,22 @@ function AttachmentViewer({
   );
 }
 
-export default function PatientAttachments() {
-  const { locked, rawIdentifier, historyVersion } = usePatient();
+export default function PatientAttachments({
+  documentsOnly = false,
+  embedded = false,
+}: {
+  documentsOnly?: boolean;
+  /** Render list only (no section chrome) — e.g. inside Scanned reports. */
+  embedded?: boolean;
+} = {}) {
+  const { locked, rawIdentifier, historyVersion, bumpHistory } = usePatient();
   const [items, setItems] = useState<AttachmentItem[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">(
     "idle",
   );
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [viewer, setViewer] = useState<ViewerPayload | null>(null);
   const [viewerBlob, setViewerBlob] = useState<Blob | null>(null);
 
@@ -160,6 +171,7 @@ export default function PatientAttachments() {
       const mapped: AttachmentItem[] = (data || [])
         .filter((r) => {
           const t = r.encounter_data?.type;
+          if (documentsOnly) return t === "document";
           return t === "document" || t === "prescription" || !t;
         })
         .map((r) => {
@@ -175,6 +187,10 @@ export default function PatientAttachments() {
             subtitle: meta.subtitle,
             createdAt: r.created_at,
             issuedDisplay: issued,
+            findingsSummary:
+              typeof r.encounter_data?.findings?.summary === "string"
+                ? r.encounter_data.findings.summary
+                : null,
           };
         });
       setItems(mapped);
@@ -185,7 +201,7 @@ export default function PatientAttachments() {
         err instanceof Error ? err.message : "Unable to load attachments.",
       );
     }
-  }, []);
+  }, [documentsOnly]);
 
   useEffect(() => {
     if (!locked || !rawIdentifier.trim()) {
@@ -268,84 +284,163 @@ export default function PatientAttachments() {
     [fetchAttachmentBlob, rawIdentifier],
   );
 
+  const analyzeDocument = useCallback(
+    async (item: AttachmentItem) => {
+      if (!rawIdentifier.trim() || item.kind !== "document") return;
+      setAnalyzingId(item.id);
+      setError(null);
+      try {
+        const response = await apiFetch(
+          `/api/v1/history/documents/${item.id}/analyze`,
+          {
+            method: "POST",
+            body: JSON.stringify({ raw_identifier: rawIdentifier.trim() }),
+          },
+        );
+        if (!response.ok) {
+          throw new Error(`Analyze failed (${response.status})`);
+        }
+        const data = (await response.json()) as {
+          findings?: { summary?: string };
+        };
+        const summary =
+          typeof data.findings?.summary === "string"
+            ? data.findings.summary
+            : null;
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === item.id ? { ...it, findingsSummary: summary } : it,
+          ),
+        );
+        bumpHistory();
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not analyze report.",
+        );
+      } finally {
+        setAnalyzingId(null);
+      }
+    },
+    [bumpHistory, rawIdentifier],
+  );
+
   const headerNote = useMemo(() => {
     if (!locked) return "Select a patient to see attachments.";
     if (status === "loading") return "Loading attachments…";
-    if (status === "empty") return "No prescriptions or reports yet.";
-    return "Open to view, Print to print, or Download to save on your phone.";
-  }, [locked, status]);
+    if (status === "empty") {
+      return documentsOnly
+        ? "No scanned reports yet."
+        : "No prescriptions or reports yet.";
+    }
+    return documentsOnly
+      ? "Open, print, or download reports for this patient."
+      : "Open to view, Print to print, or Download to save on your phone.";
+  }, [locked, status, documentsOnly]);
+
+  const listBody = (
+    <>
+      {status === "error" && error ? (
+        <p className="text-sm text-red-300" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {status !== "error" && error ? (
+        <p className="text-sm text-clinical-100/80" role="status">
+          {error}
+        </p>
+      ) : null}
+
+      {embedded && locked && status !== "ready" && status !== "error" ? (
+        <p className="text-sm text-clinical-100/55">{headerNote}</p>
+      ) : null}
+
+      {status === "ready" ? (
+        <ul
+          className={
+            embedded
+              ? "mt-2 divide-y divide-clinical-100/10 border-t border-clinical-100/15"
+              : "divide-y divide-clinical-100/10"
+          }
+        >
+          {items.map((item) => (
+            <li
+              className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+              key={item.id}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-clinical-50">
+                  {item.label}
+                </p>
+                <p className="mt-0.5 text-xs text-clinical-100/55">
+                  {item.issuedDisplay || formatIst(item.createdAt)} ·{" "}
+                  {item.subtitle}
+                </p>
+                {item.findingsSummary ? (
+                  <p className="mt-1 text-xs text-clinical-100/80">
+                    Findings: {item.findingsSummary}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {item.kind === "document" ? (
+                  <button
+                    className="inline-flex min-h-12 items-center justify-center rounded-lg border border-teal-300/40 px-3 text-sm text-teal-100 disabled:opacity-60"
+                    disabled={busyId === item.id || analyzingId === item.id}
+                    onClick={() => void analyzeDocument(item)}
+                    type="button"
+                  >
+                    {analyzingId === item.id ? "Analyzing…" : "Analyze"}
+                  </button>
+                ) : null}
+                <button
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm text-slate-800 disabled:opacity-60"
+                  disabled={busyId === item.id}
+                  onClick={() => void openOrDownload(item, "open")}
+                  type="button"
+                >
+                  Open
+                </button>
+                <button
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm text-slate-800 disabled:opacity-60"
+                  disabled={busyId === item.id}
+                  onClick={() => void openOrDownload(item, "print")}
+                  type="button"
+                >
+                  Print
+                </button>
+                <button
+                  className="inline-flex min-h-12 items-center justify-center rounded-lg bg-clinical-500 px-3 text-sm font-medium text-white disabled:opacity-60"
+                  disabled={busyId === item.id}
+                  onClick={() => void openOrDownload(item, "download")}
+                  type="button"
+                >
+                  {busyId === item.id ? "…" : "Download"}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
 
   return (
     <>
-      <section
-        aria-label="Patient attachments"
-        className="mx-auto w-full max-w-3xl rounded-2xl border border-clinical-500/25 bg-clinical-900/70 px-4 py-6 sm:px-6"
-      >
-        <header>
-          <h2 className="text-lg font-semibold tracking-tight text-clinical-50">
-            Attachments
-          </h2>
-          <p className="mt-1 text-sm text-clinical-100/65">{headerNote}</p>
-        </header>
-
-        {status === "error" && error ? (
-          <p className="mt-4 text-sm text-red-300" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {status !== "error" && error ? (
-          <p className="mt-4 text-sm text-clinical-100/80" role="status">
-            {error}
-          </p>
-        ) : null}
-
-        {status === "ready" ? (
-          <ul className="mt-4 divide-y divide-clinical-100/10">
-            {items.map((item) => (
-              <li
-                className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
-                key={item.id}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-clinical-50">
-                    {item.label}
-                  </p>
-                  <p className="mt-0.5 text-xs text-clinical-100/55">
-                    {item.issuedDisplay || formatIst(item.createdAt)} ·{" "}
-                    {item.subtitle}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <button
-                    className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm text-slate-800 disabled:opacity-60"
-                    disabled={busyId === item.id}
-                    onClick={() => void openOrDownload(item, "open")}
-                    type="button"
-                  >
-                    Open
-                  </button>
-                  <button
-                    className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm text-slate-800 disabled:opacity-60"
-                    disabled={busyId === item.id}
-                    onClick={() => void openOrDownload(item, "print")}
-                    type="button"
-                  >
-                    Print
-                  </button>
-                  <button
-                    className="inline-flex min-h-12 items-center justify-center rounded-lg bg-clinical-500 px-3 text-sm font-medium text-white disabled:opacity-60"
-                    disabled={busyId === item.id}
-                    onClick={() => void openOrDownload(item, "download")}
-                    type="button"
-                  >
-                    {busyId === item.id ? "…" : "Download"}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      {embedded ? (
+        <div aria-label="Scanned reports list" className="mt-4">
+          {listBody}
+        </div>
+      ) : (
+        <CollapsibleSection
+          aria-label="Patient attachments"
+          className="mx-auto w-full max-w-3xl rounded-2xl border border-clinical-500/25 bg-clinical-900/70 px-4 py-6 sm:px-6"
+          hint={headerNote}
+          title="Attachments"
+          variant="dark"
+        >
+          {listBody}
+        </CollapsibleSection>
+      )}
 
       {viewer ? (
         <AttachmentViewer

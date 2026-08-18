@@ -40,9 +40,16 @@ backend/data/
 backend/backups/
 deploy/certs/*
 !deploy/certs/README.md
+deploy/web/*
+!deploy/web/.gitkeep
 frontend/android/key.properties
 *.jks
 *.keystore
 
 # Share pack (APK + live PINs — never commit)
 share/
+*.apk
+
+# Cloud-agent / ad-hoc deploy scratch (never commit)
+.cursor/tmp_*
+.cursor/*.tar.gz
