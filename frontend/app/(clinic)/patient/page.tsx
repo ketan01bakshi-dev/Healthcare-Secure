@@ -3,48 +3,20 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { useClinicFeatures, useActiveClinicRole } from "@/components/DoctorGate";
-import NeedPatient from "@/components/NeedPatient";
-import PatientBar from "@/components/PatientBar";
-import ObstetricProfileForm from "@/components/ObstetricProfileForm";
-import OngoingHealthForm from "@/components/OngoingHealthForm";
-import VitalsForm from "@/components/VitalsForm";
 import { usePatient } from "@/context/PatientContext";
-import { useI18n } from "@/lib/i18n";
+import { patientCardPath } from "@/lib/clinicRoutes";
 
-export default function PatientPage() {
-  const role = useActiveClinicRole();
-  const { has } = useClinicFeatures();
-  const { locked } = usePatient();
+export default function PatientLegacyRedirect() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { blindPatientId, locked } = usePatient();
 
   useEffect(() => {
-    if (role === "receptionist") {
-      router.replace("/today/");
-      return;
+    if (locked && blindPatientId) {
+      router.replace(patientCardPath(blindPatientId, "vitals"));
+    } else {
+      router.replace("/home/patients/");
     }
-    if (role === "lab") {
-      router.replace(locked ? "/labs/" : "/today/");
-    }
-  }, [role, router, locked]);
+  }, [router, locked, blindPatientId]);
 
-  if (role === "receptionist" || role === "lab") {
-    return (
-      <p className="text-sm text-slate-500">
-        {role === "lab" ? t("redirectingToLabs") : t("redirectingToToday")}
-      </p>
-    );
-  }
-
-  return (
-    <NeedPatient>
-      <div className="space-y-6">
-        <PatientBar />
-        <VitalsForm />
-        {has("obstetric") ? <ObstetricProfileForm /> : null}
-        <OngoingHealthForm />
-      </div>
-    </NeedPatient>
-  );
+  return <p className="text-sm text-slate-500">Loading…</p>;
 }

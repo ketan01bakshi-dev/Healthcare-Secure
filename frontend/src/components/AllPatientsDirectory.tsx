@@ -93,9 +93,9 @@ export default function AllPatientsDirectory() {
     setBusy(true);
     setStatus(null);
     try {
-      await lockFromDirectory(blindId);
+      const lockedId = await lockFromDirectory(blindId);
       setStatus(t("patientOpened"));
-      router.push(pathAfterPatientLock(role));
+      router.push(pathAfterPatientLock(role, lockedId));
     } catch (err) {
       setStatus(
         err instanceof Error ? err.message : t("openPatientFailed"),

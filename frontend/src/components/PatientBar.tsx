@@ -347,7 +347,7 @@ export default function PatientBar() {
                 className="min-h-12 rounded-lg border border-slate-200 px-4 text-sm"
                 onClick={() => {
                   clearPatient();
-                  router.push("/today/#all-patients");
+                  router.push("/home/patients/");
                 }}
                 type="button"
               >

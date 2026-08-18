@@ -17,3 +17,8 @@ body {
   color: var(--foreground);
   background: #ffffff;
 }
+
+.dark body {
+  color: #f1f5f9;
+  background: #020617;
+}

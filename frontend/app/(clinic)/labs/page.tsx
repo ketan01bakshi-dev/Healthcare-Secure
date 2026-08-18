@@ -9,6 +9,7 @@ import LabResultsForm from "@/components/LabResultsForm";
 import NeedPatient from "@/components/NeedPatient";
 import PatientAttachments from "@/components/PatientAttachments";
 import PendingLabOrders from "@/components/PendingLabOrders";
+import { HOME_LANDING } from "@/lib/clinicRoutes";
 import { useI18n } from "@/lib/i18n";
 
 export default function LabsPage() {
@@ -19,7 +20,7 @@ export default function LabsPage() {
 
   useEffect(() => {
     if (!has("labs")) {
-      router.replace("/today/");
+      router.replace(HOME_LANDING);
     }
   }, [has, router]);
 

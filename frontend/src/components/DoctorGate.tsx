@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import {
   type ClinicFeature,
@@ -32,6 +32,7 @@ import {
   setApiBaseUrl,
   isProductionApiLocked,
 } from "@/lib/apiBase";
+import { HOME_LANDING } from "@/lib/clinicRoutes";
 import { useI18n } from "@/lib/i18n";
 
 type Props = {
@@ -107,6 +108,8 @@ function isAlphaClinic(name: string): boolean {
 export default function DoctorGate({ children }: Props) {
   const { t } = useI18n();
   const router = useRouter();
+  const pathname = usePathname() || "";
+  const isHomeShell = pathname.startsWith("/home/");
   const [checking, setChecking] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
   const [clinicGate, setClinicGateState] = useState<ClinicGate | null>(null);
@@ -278,7 +281,7 @@ export default function DoctorGate({ children }: Props) {
         setActiveUser(user);
         setUnlocked(true);
         setPin("");
-        router.replace("/today/");
+        router.replace(HOME_LANDING);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sign-in failed");
       } finally {
@@ -913,7 +916,8 @@ export default function DoctorGate({ children }: Props) {
 
   return (
     <div className="space-y-6">
-      <header className="border-b border-slate-100 pb-4">
+      {!isHomeShell ? (
+      <header className="border-b border-slate-100 pb-4 dark:border-slate-800">
         <div className="min-w-0">
           <p className="text-sm uppercase tracking-[0.2em] text-slate-500">
             Aarogya One Connect
@@ -953,6 +957,7 @@ export default function DoctorGate({ children }: Props) {
           </div>
         ) : null}
       </header>
+      ) : null}
       <ClinicUserBridge user={activeUser}>{children}</ClinicUserBridge>
     </div>
   );
