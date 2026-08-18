@@ -33,18 +33,8 @@ function DashboardBody() {
 export default function HomePage() {
   return (
     <PatientProvider>
-      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col overflow-x-hidden bg-white px-4 py-10 sm:px-6 sm:py-16">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-500">
-          Healthcare Secure
-        </p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-          Clinical dashboard
-        </h1>
-        <p className="mt-4 max-w-xl text-base text-slate-600 sm:text-lg">
-          Choose a patient, record notes, add vitals, and share prescriptions.
-        </p>
-
-        <div className="mt-8 w-full space-y-8 sm:mt-10 sm:space-y-10">
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col overflow-x-hidden bg-white px-4 py-6 sm:px-6 sm:py-8">
+        <div className="w-full space-y-8 sm:space-y-10">
           <DoctorGate>
             <DashboardBody />
           </DoctorGate>

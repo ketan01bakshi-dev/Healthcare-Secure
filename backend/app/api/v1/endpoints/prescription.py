@@ -15,6 +15,7 @@ from app.api.v1.helpers.delivery import build_expiring_prescription_download_url
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.record import ClinicalRecord
+from app.services.clinical_search import remember_patient_identity
 from app.services.doctor_auth import DoctorOnly, DoctorSession
 from app.services.lml_parser import (
     ClinicalParseResult,
@@ -240,6 +241,15 @@ def write_prescription(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to tokenize patient identifier",
         ) from None
+    try:
+        patient_name, patient_phone = body.raw_identifier.strip().split("|", 1)
+        remember_patient_identity(
+            blind_patient_id=blind_id,
+            patient_name=patient_name,
+            patient_phone=patient_phone,
+        )
+    except ValueError:
+        pass
 
     transcript_count = body.transcript_count
     if body.clinical:

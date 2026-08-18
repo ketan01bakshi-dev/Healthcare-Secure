@@ -29,6 +29,7 @@ type PatientContextValue = {
   setNameDraft: (name: string) => void;
   setPhoneDraft: (phone: string) => void;
   lockPatient: () => Promise<void>;
+  selectPatient: (name: string, phone: string) => Promise<void>;
   clearPatient: () => void;
   historyVersion: number;
   bumpHistory: () => void;
@@ -47,9 +48,9 @@ export function PatientProvider({ children }: { children: ReactNode }) {
   const [locked, setLocked] = useState(false);
   const [historyVersion, setHistoryVersion] = useState(0);
 
-  const lockPatient = useCallback(async () => {
-    const name = nameDraft.trim();
-    const phone = phoneDraft.trim();
+  const selectPatient = useCallback(async (nameInput: string, phoneInput: string) => {
+    const name = nameInput.trim();
+    const phone = phoneInput.trim();
     const digits = digitsOnly(phone);
     if (!name) {
       throw new Error("Enter the patient name first.");
@@ -84,6 +85,10 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     setBlindPhoneId(data.blind_phone_id ?? null);
     setLocked(true);
     setHistoryVersion((v) => v + 1);
+  }, []);
+
+  const lockPatient = useCallback(async () => {
+    await selectPatient(nameDraft, phoneDraft);
   }, [nameDraft, phoneDraft]);
 
   const clearPatient = useCallback(() => {
@@ -115,6 +120,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       setNameDraft,
       setPhoneDraft,
       lockPatient,
+      selectPatient,
       clearPatient,
       historyVersion,
       bumpHistory,
@@ -129,6 +135,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       blindPhoneId,
       locked,
       lockPatient,
+      selectPatient,
       clearPatient,
       historyVersion,
       bumpHistory,

@@ -2,12 +2,14 @@
 
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 
+import { usePatient } from "@/context/PatientContext";
 import {
   type ClinicFeature,
   type ClinicGate,
   type ClinicRole,
   type ClinicUserInfo,
   ALL_CLINIC_FEATURES,
+  apiFetch,
   fetchAuthMe,
   fetchAuthStatus,
   getClinicGate,
@@ -39,6 +41,19 @@ type Props = {
 
 type ForgotStep = "clinic" | "doctor" | "password" | null;
 
+type GlobalSearchResult = {
+  kind: "patient" | "record";
+  blind_patient_id: string;
+  patient_name?: string | null;
+  patient_phone?: string | null;
+  record_id?: string | null;
+  created_at?: string | null;
+  title: string;
+  subtitle: string;
+  match_source: string;
+  locked_patient_priority?: boolean;
+};
+
 function roleLabel(role: ClinicRole): string {
   if (role === "doctor") return "Doctor";
   if (role === "lab") return "Lab";
@@ -51,6 +66,143 @@ function roleHint(role: ClinicRole): string {
   if (role === "lab") return "Upload lab reports only";
   if (role === "receptionist") return "Patient Info and More";
   return "Patient Info, Vitals, Records, and More";
+}
+
+function CompactClinicSearch() {
+  const {
+    locked,
+    blindPatientId,
+    patientName,
+    patientPhone,
+    selectPatient,
+    clearPatient,
+  } = usePatient();
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<GlobalSearchResult[]>([]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setResults([]);
+      setError(null);
+      setBusy(false);
+      return;
+    }
+    const timeoutId = window.setTimeout(async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        const response = await apiFetch("/api/v1/history/global-search", {
+          method: "POST",
+          body: JSON.stringify({
+            query: trimmed,
+            locked_blind_patient_id: locked ? blindPatientId : null,
+          }),
+        });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || `Search failed (${response.status})`);
+        }
+        const data = (await response.json()) as GlobalSearchResult[];
+        setResults(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setResults([]);
+        setError(
+          err instanceof Error ? err.message : "Could not search this clinic right now.",
+        );
+      } finally {
+        setBusy(false);
+      }
+    }, 180);
+    return () => window.clearTimeout(timeoutId);
+  }, [blindPatientId, locked, query]);
+
+  const onSelect = useCallback(
+    async (item: GlobalSearchResult) => {
+      if (!item.patient_name || !item.patient_phone) return;
+      await selectPatient(item.patient_name, item.patient_phone);
+      setQuery(item.patient_name);
+      setResults([]);
+      setError(null);
+    },
+    [selectPatient],
+  );
+
+  return (
+    <div className="relative min-w-0 flex-1">
+      <label className="sr-only" htmlFor="clinic-universal-search">
+        Search patients, diagnoses, medications, notes, documents, and labs
+      </label>
+      <input
+        id="clinic-universal-search"
+        autoComplete="off"
+        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none ring-clinical-500 focus:ring-2"
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search patients, diagnoses, medications, notes, reports..."
+        value={query}
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        {busy ? <span>Searching clinic…</span> : null}
+        {locked ? (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
+            Locked patient: {patientName} · {patientPhone}
+          </span>
+        ) : (
+          <span>Search the full clinic, then lock onto a patient.</span>
+        )}
+        {locked ? (
+          <button
+            className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-700"
+            onClick={clearPatient}
+            type="button"
+          >
+            Clear patient
+          </button>
+        ) : null}
+      </div>
+      {error ? (
+        <p className="mt-2 text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {results.length ? (
+        <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+          <ul className="max-h-80 overflow-y-auto py-2">
+            {results.map((item, index) => {
+              const canSelect = !!item.patient_name && !!item.patient_phone;
+              return (
+                <li key={`${item.kind}-${item.record_id || item.blind_patient_id}-${index}`}>
+                  <button
+                    className="flex w-full flex-col items-start gap-1 px-4 py-3 text-left hover:bg-slate-50 disabled:cursor-default"
+                    disabled={!canSelect}
+                    onClick={() => void onSelect(item)}
+                    type="button"
+                  >
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-slate-900">
+                        {item.title}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] uppercase tracking-wide text-slate-600">
+                        {item.match_source}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600">{item.subtitle}</p>
+                    {item.locked_patient_priority ? (
+                      <p className="text-xs text-clinical-700">
+                        Prioritized because this patient is currently locked.
+                      </p>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function DoctorGate({ children }: Props) {
@@ -879,38 +1031,34 @@ export default function DoctorGate({ children }: Props) {
 
   return (
     <div className="space-y-6">
-      <header className="border-b border-slate-100 pb-4">
-        <div className="min-w-0">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-500">
-            Aarogya One Connect
-          </p>
-          <h1 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
-            {activeUser?.role === "lab"
-              ? "Lab desk"
-              : activeUser?.role === "receptionist"
-                ? "Reception desk"
-                : activeUser?.role === "staff"
-                  ? "Staff desk"
-                  : "Doctor desk"}
-          </h1>
-          <p className="mt-1 truncate text-sm text-slate-600">
-            {clinicGate?.name ? `${clinicGate.name} · ` : ""}
-            {activeUser
-              ? `${activeUser.display_name} · ${roleLabel(activeUser.role)}`
-              : "Signed in"}
-          </p>
+      <header className="rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-4 shadow-sm sm:px-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+          <div className="min-w-0 lg:w-52">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+              Aarogya One Connect
+            </p>
+            <p className="mt-1 truncate text-sm font-medium text-slate-900">
+              {clinicGate?.name || "Clinic"}
+            </p>
+            <p className="truncate text-xs text-slate-600">
+              {activeUser
+                ? `${activeUser.display_name} · ${roleLabel(activeUser.role)}`
+                : "Signed in"}
+            </p>
+          </div>
+          <CompactClinicSearch />
         </div>
         {authRequired ? (
           <div className="mt-3 flex flex-wrap justify-end gap-2">
             <button
-              className="inline-flex min-h-12 shrink-0 items-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-800"
+              className="inline-flex min-h-10 shrink-0 items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800"
               onClick={() => void onSwitchClinic()}
               type="button"
             >
               Switch clinic
             </button>
             <button
-              className="inline-flex min-h-12 shrink-0 items-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-800"
+              className="inline-flex min-h-10 shrink-0 items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800"
               onClick={() => void onLock()}
               type="button"
             >
