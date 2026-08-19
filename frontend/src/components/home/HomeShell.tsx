@@ -35,7 +35,8 @@ export default function HomeShell({
     pathname.startsWith("/home/calendar/new") ||
     pathname.startsWith("/home/calendar/event") ||
     pathname.startsWith("/home/patients/new") ||
-    pathname.startsWith("/home/patient/");
+    pathname === "/home/patient/" ||
+    pathname.startsWith("/home/patient/?");
 
   const fabBottom = "bottom-[7.5rem]";
   const notifBottom = "bottom-[4.5rem]";
