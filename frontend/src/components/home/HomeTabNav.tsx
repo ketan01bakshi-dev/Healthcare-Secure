@@ -26,7 +26,7 @@ const TABS: TabItem[] = [
     labelKey: "navPatients",
     icon: "👤",
     match: (p) =>
-      p.startsWith("/home/patients") && !p.startsWith("/home/patient"),
+      p.startsWith("/home/patients") && !p.startsWith("/home/patients/new"),
   },
   {
     href: "/home/search/",
