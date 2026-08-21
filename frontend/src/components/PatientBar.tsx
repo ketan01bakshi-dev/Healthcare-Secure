@@ -22,7 +22,12 @@ function toDatetimeLocalValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export default function PatientBar() {
+type PatientBarProps = {
+  /** Override the collapsible section title (default: "Patient"). */
+  title?: string;
+};
+
+export default function PatientBar({ title }: PatientBarProps) {
   const {
     abhaDraft,
     patientName,
@@ -183,7 +188,7 @@ export default function PatientBar() {
       aria-label="Patient identity"
       className="w-full overflow-x-hidden rounded-xl border border-slate-200 bg-white px-4 py-4"
       hint={t("patientHint")}
-      title={t("patient")}
+      title={title ?? t("patient")}
     >
       <div className="mt-4 space-y-3">
           <p className="text-base font-medium text-slate-900">{patientName}</p>
