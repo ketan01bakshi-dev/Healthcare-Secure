@@ -75,7 +75,7 @@ export default function LabResultsForm({ suggestedTest = "" }: Props) {
 
   return (
     <CollapsibleSection
-      hint="Structured values the doctor can read on the timeline without opening a PDF."
+      hint={t("labResultsHint")}
       title={t("labResults")}
     >
       <form className="grid gap-3 sm:grid-cols-2" onSubmit={onSubmit}>
@@ -83,35 +83,35 @@ export default function LabResultsForm({ suggestedTest = "" }: Props) {
           className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm"
           disabled={!locked || busy}
           onChange={(e) => setTestName(e.target.value)}
-          placeholder="Test name (e.g. HbA1c)"
+          placeholder={t("labTestNamePlaceholder")}
           value={testName}
         />
         <input
           className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm"
           disabled={!locked || busy}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Value"
+          placeholder={t("labValue")}
           value={value}
         />
         <input
           className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm"
           disabled={!locked || busy}
           onChange={(e) => setUnit(e.target.value)}
-          placeholder="Unit"
+          placeholder={t("labUnit")}
           value={unit}
         />
         <input
           className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm"
           disabled={!locked || busy}
           onChange={(e) => setRefRange(e.target.value)}
-          placeholder="Reference range"
+          placeholder={t("labRefRange")}
           value={refRange}
         />
         <input
           className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm sm:col-span-2"
           disabled={!locked || busy}
           onChange={(e) => setCollectedAt(e.target.value)}
-          placeholder="Collected date (optional)"
+          placeholder={t("labCollectedOptional")}
           value={collectedAt}
         />
         <button
@@ -119,7 +119,7 @@ export default function LabResultsForm({ suggestedTest = "" }: Props) {
           disabled={!locked || busy}
           type="submit"
         >
-          {busy ? "Saving…" : t("saveLab")}
+          {busy ? t("savingEllipsis") : t("saveLab")}
         </button>
       </form>
       {status ? (

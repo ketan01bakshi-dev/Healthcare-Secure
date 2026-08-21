@@ -47,8 +47,8 @@ type PatientContextValue = {
   setMrnDraft: (mrn: string) => void;
   setAbhaDraft: (abha: string) => void;
   lockPatient: () => Promise<void>;
-  lockFromAppointment: (appointmentId: string) => Promise<void>;
-  lockFromDirectory: (blindPatientId: string) => Promise<void>;
+  lockFromAppointment: (appointmentId: string) => Promise<string>;
+  lockFromDirectory: (blindPatientId: string) => Promise<string>;
   lockFromHandoff: (opts: {
     displayName: string;
     clinicMrn?: string;
@@ -333,6 +333,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     setPatientAgeYears(parseAgeYears(data.age_years));
     setLocked(true);
     setHistoryVersion((v) => v + 1);
+    return data.blind_patient_id;
   }, []);
 
   const lockFromDirectory = useCallback(async (blindPatientId: string) => {
@@ -403,6 +404,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     setPatientAgeYears(parseAgeYears(data.age_years));
     setLocked(true);
     setHistoryVersion((v) => v + 1);
+    return data.blind_patient_id;
   }, []);
 
   const lockFromHandoff = useCallback(

@@ -206,7 +206,7 @@ def tokenize_patient(
                 "display_name": session.display_name,
                 "role": session.role,
             },
-            bump_visit=session.role != "lab",
+            bump_visit=False,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -258,6 +258,7 @@ def list_clinic_patients(
     from datetime import timedelta
 
     from app.services.clinic_patients import (
+        compute_visit_counts,
         list_clinic_patients_stmt,
         sync_patients_from_appointments,
     )
@@ -277,13 +278,18 @@ def list_clinic_patients(
         session.clinic_id, q=q, seen_from=seen_from, seen_to=None
     )
     rows = db.scalars(stmt).all()
+    visit_counts = compute_visit_counts(
+        db,
+        session.clinic_id,
+        [r.blind_patient_id for r in rows],
+    )
     return [
         ClinicPatientOut(
             blind_patient_id=r.blind_patient_id,
             display_name=r.display_name,
             phone_last4=r.phone_last4 or "",
             clinic_mrn=r.clinic_mrn or "",
-            visit_count=int(r.visit_count or 1),
+            visit_count=int(visit_counts.get(r.blind_patient_id, 0)),
             last_seen_at=r.last_seen_at.isoformat() if r.last_seen_at else None,
             first_seen_at=r.first_seen_at.isoformat() if r.first_seen_at else None,
             has_phone=bool(r.phone_encrypted),
@@ -291,6 +297,160 @@ def list_clinic_patients(
         )
         for r in rows
     ]
+
+
+class ClinicalSearchMatch(BaseModel):
+    blind_patient_id: str
+    display_name: str
+    phone_last4: str = ""
+    clinic_mrn: str = ""
+    match_type: str  # "name" | "medication" | "diagnosis" | "symptom" | "treatment" | "observation"
+    match_text: str  # the snippet that matched
+    record_date: str | None = None
+
+
+@router.get("/clinical-search", response_model=list[ClinicalSearchMatch])
+def clinical_search(
+    q: str,
+    session: DoctorSession,
+    db: Session = Depends(get_db),
+) -> list[ClinicalSearchMatch]:
+    """
+    Universal search across patient names AND clinical record content
+    (medications, diagnoses, symptoms, observations, lab results, health profile).
+    Returns deduplicated matches ordered by relevance (name first, then clinical).
+    Lab users see only their own uploaded results.
+    """
+    from app.models.clinic_patient import ClinicPatient
+    from app.services.clinic_patients import list_clinic_patients_stmt
+
+    term = (q or "").strip().lower()
+    if len(term) < 2:
+        return []
+
+    results: list[ClinicalSearchMatch] = []
+    seen_patient_ids: set[str] = set()
+
+    # --- 1. Patient name / phone / MRN matches ---
+    stmt = list_clinic_patients_stmt(session.clinic_id, q=term)
+    patient_rows = db.scalars(stmt).all()
+    patient_meta: dict[str, ClinicPatient] = {}
+    for row in patient_rows:
+        patient_meta[row.blind_patient_id] = row
+        results.append(
+            ClinicalSearchMatch(
+                blind_patient_id=row.blind_patient_id,
+                display_name=row.display_name,
+                phone_last4=row.phone_last4 or "",
+                clinic_mrn=row.clinic_mrn or "",
+                match_type="name",
+                match_text=row.display_name,
+                record_date=None,
+            )
+        )
+        seen_patient_ids.add(row.blind_patient_id)
+
+    # Pre-fetch all clinic patients for name lookup in clinical hits
+    all_patients = db.scalars(
+        select(ClinicPatient).where(ClinicPatient.clinic_id == session.clinic_id)
+    ).all()
+    pid_to_patient: dict[str, ClinicPatient] = {
+        p.blind_patient_id: p for p in all_patients
+    }
+
+    # --- 2. Clinical record content search ---
+    record_stmt = (
+        select(ClinicalRecord)
+        .where(ClinicalRecord.clinic_id == session.clinic_id)
+        .order_by(ClinicalRecord.created_at.desc())
+    )
+    records = db.scalars(record_stmt).all()
+
+    # Track one best match per (patient, match_type) to avoid flood
+    seen_clinical: set[tuple[str, str]] = set()
+
+    for record in records:
+        data: dict[str, Any] = dict(record.encounter_data or {})
+        rec_type = data.get("type", "")
+
+        # Lab users: only their own uploads
+        if session.role == "lab" and rec_type not in ("document", "lab_result"):
+            continue
+
+        pid = record.blind_patient_id
+        pat = pid_to_patient.get(pid)
+        if pat is None:
+            continue
+
+        rec_date = (
+            record.created_at.date().isoformat() if record.created_at else None
+        )
+
+        def _try_match(field_type: str, text: str) -> bool:
+            """Return True and append if term in text and not already seen."""
+            if term not in text.lower():
+                return False
+            key = (pid, field_type)
+            if key in seen_clinical:
+                return False
+            seen_clinical.add(key)
+            results.append(
+                ClinicalSearchMatch(
+                    blind_patient_id=pid,
+                    display_name=pat.display_name,
+                    phone_last4=pat.phone_last4 or "",
+                    clinic_mrn=pat.clinic_mrn or "",
+                    match_type=field_type,
+                    match_text=text[:120],
+                    record_date=rec_date,
+                )
+            )
+            return True
+
+        # Medications
+        for med in data.get("medications") or []:
+            if isinstance(med, dict):
+                med_text = " ".join(
+                    str(med.get(k, ""))
+                    for k in ("name", "dosage", "frequency", "duration")
+                    if med.get(k)
+                )
+                _try_match("medication", med_text)
+
+        # Diagnoses
+        for diag in data.get("diagnoses") or data.get("diagnosis") or []:
+            _try_match("diagnosis", str(diag))
+
+        # Symptoms
+        for sym in data.get("symptoms") or []:
+            _try_match("symptom", str(sym))
+
+        # Clinical observations / treatment notes
+        for obs in data.get("clinical_observations") or []:
+            _try_match("observation", str(obs))
+
+        # Lab result summary
+        if rec_type == "lab_result":
+            for k, v in data.items():
+                if k in ("type", "raw_identifier", "entered_by", "entered_at"):
+                    continue
+                if isinstance(v, (str, int, float)) and term in str(v).lower():
+                    _try_match("lab_result", f"{k}: {v}")
+                    break
+
+        # Ongoing health profile text
+        for field in ("ongoing_medications", "health_issues"):
+            val = data.get(field, "")
+            if val:
+                _try_match("treatment", str(val))
+
+        # Document title / label
+        if rec_type in ("document", "diagnostic_report"):
+            label = data.get("label") or data.get("document_kind") or ""
+            if label:
+                _try_match("document", str(label))
+
+    return results
 
 
 @router.get("/patients/{blind_patient_id}/identity")

@@ -158,7 +158,7 @@ def resolve_patient_identity(
     clinic_mrn: str | None = None,
     raw_identifier: str | None = None,
     actor: dict[str, str] | None = None,
-    bump_visit: bool = True,
+    bump_visit: bool = False,
 ) -> ResolvedPatientIdentity:
     """
     Always resolve to an MRN-keyed blind id.

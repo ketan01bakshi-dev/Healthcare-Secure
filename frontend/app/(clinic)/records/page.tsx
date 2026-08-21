@@ -1,48 +1,22 @@
 "use client";
 
-import DocumentUpload from "@/components/DocumentUpload";
-import { useActiveClinicRole } from "@/components/DoctorGate";
-import LabResultsForm from "@/components/LabResultsForm";
-import NeedPatient from "@/components/NeedPatient";
-import PatientAuditTrail from "@/components/PatientAuditTrail";
-import PatientTimeline from "@/components/PatientTimeline";
-import { useI18n } from "@/lib/i18n";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function RecordsPage() {
-  const role = useActiveClinicRole();
+import { usePatient } from "@/context/PatientContext";
+import { patientCardPath } from "@/lib/clinicRoutes";
+
+export default function RecordsLegacyRedirect() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { blindPatientId, locked } = usePatient();
 
   useEffect(() => {
-    if (role === "lab") {
-      router.replace("/labs/");
-      return;
+    if (locked && blindPatientId) {
+      router.replace(patientCardPath(blindPatientId, "records"));
+    } else {
+      router.replace("/home/patients/");
     }
-    if (role === "receptionist") {
-      router.replace("/today/");
-    }
-  }, [role, router]);
+  }, [router, locked, blindPatientId]);
 
-  if (role === "lab") {
-    return null;
-  }
-
-  if (role === "receptionist") {
-    return (
-      <p className="text-sm text-slate-500">{t("redirectingToToday")}</p>
-    );
-  }
-
-  return (
-    <NeedPatient>
-      <div className="space-y-6">
-        <LabResultsForm />
-        <DocumentUpload />
-        <PatientTimeline />
-        <PatientAuditTrail />
-      </div>
-    </NeedPatient>
-  );
+  return <p className="text-sm text-slate-500">Loading…</p>;
 }

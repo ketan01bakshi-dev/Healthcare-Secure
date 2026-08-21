@@ -60,7 +60,7 @@ export default function LockedPatientChip() {
       <div className="mb-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3">
         <p className="text-sm text-slate-600">{t("noPatientLocked")}</p>
         <Link
-          href="/today/#all-patients"
+            href="/home/patients/"
           className="mt-2 inline-flex min-h-10 items-center text-sm font-medium text-slate-900 underline"
         >
           {t("selectPatient")}
@@ -97,7 +97,7 @@ export default function LockedPatientChip() {
         ) : null}
       </div>
       <Link
-        href="/today/#all-patients"
+          href="/home/patients/"
         className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-800"
       >
         {t("changePatient")}

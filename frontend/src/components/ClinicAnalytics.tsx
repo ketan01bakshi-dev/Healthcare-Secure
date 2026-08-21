@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import CollapsibleSection from "@/components/CollapsibleSection";
 import { useActiveClinicRole } from "@/components/DoctorGate";
-import { usePatient } from "@/context/PatientContext";
 import { apiFetch } from "@/lib/doctorSession";
 import { shareOrDownloadBlob } from "@/lib/fileActions";
 import { useI18n } from "@/lib/i18n";
@@ -64,7 +63,6 @@ function formatInr(amount: number): string {
 export default function ClinicAnalytics() {
   const { t } = useI18n();
   const role = useActiveClinicRole();
-  const { locked, rawIdentifier, bumpHistory } = usePatient();
   const [overview, setOverview] = useState<ClinicOverview | null>(null);
   const [sttMemory, setSttMemory] = useState<SttMemoryMetrics | null>(null);
   const [todayLab, setTodayLab] = useState<TodaySummary | null>(null);
@@ -73,9 +71,6 @@ export default function ClinicAnalytics() {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [billAmount, setBillAmount] = useState("");
-  const [billNote, setBillNote] = useState("");
-  const [billingBusy, setBillingBusy] = useState(false);
 
   const loadAll = useCallback(async () => {
     setError(null);
@@ -140,42 +135,6 @@ export default function ClinicAnalytics() {
       setBusy(false);
     }
   }, [t]);
-
-  const onRecordBill = useCallback(async () => {
-    if (!locked || !rawIdentifier) {
-      setError(t("lockToRecordBill"));
-      return;
-    }
-    const amount = Number(billAmount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setError(t("billAmountInvalid"));
-      return;
-    }
-    setBillingBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await apiFetch("/api/v1/history/billing", {
-        method: "POST",
-        body: JSON.stringify({
-          raw_identifier: rawIdentifier,
-          amount_inr: amount,
-          note: billNote.trim(),
-          kind: "charge",
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setBillAmount("");
-      setBillNote("");
-      setNotice(t("billRecorded"));
-      bumpHistory();
-      await loadAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("billSaveFailed"));
-    } finally {
-      setBillingBusy(false);
-    }
-  }, [billAmount, billNote, bumpHistory, loadAll, locked, rawIdentifier, t]);
 
   if (role === "lab") {
     return (
@@ -313,49 +272,6 @@ export default function ClinicAnalytics() {
           )}
         </div>
       ) : null}
-
-      <div className="space-y-2 border-t border-slate-100 pt-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {t("recordVisitBill")}
-        </h3>
-        {!locked ? (
-          <p className="text-sm text-slate-500">{t("lockToRecordBill")}</p>
-        ) : (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <label className="block flex-1 text-xs text-slate-600">
-              {t("billAmountInr")}
-              <input
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                inputMode="decimal"
-                min="0"
-                onChange={(e) => setBillAmount(e.target.value)}
-                placeholder="500"
-                step="0.01"
-                type="number"
-                value={billAmount}
-              />
-            </label>
-            <label className="block flex-[1.4] text-xs text-slate-600">
-              {t("billNote")}
-              <input
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                onChange={(e) => setBillNote(e.target.value)}
-                placeholder={t("billNotePlaceholder")}
-                type="text"
-                value={billNote}
-              />
-            </label>
-            <button
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-              disabled={billingBusy}
-              onClick={() => void onRecordBill()}
-              type="button"
-            >
-              {billingBusy ? t("saving") : t("saveBill")}
-            </button>
-          </div>
-        )}
-      </div>
     </CollapsibleSection>
   );
 }

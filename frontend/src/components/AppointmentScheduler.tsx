@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 
 import CollapsibleSection from "@/components/CollapsibleSection";
 import { useActiveClinicRole, useClinicFeatures } from "@/components/DoctorGate";
+import { useNotifications } from "@/context/NotificationContext";
 import { downloadIcs } from "@/lib/calendarExport";
 import { formatIst } from "@/lib/datetimeIst";
 import { apiFetch } from "@/lib/doctorSession";
@@ -70,6 +71,7 @@ export default function AppointmentScheduler() {
   const { t } = useI18n();
   const role = useActiveClinicRole();
   const { has } = useClinicFeatures();
+  const { push: pushNotification } = useNotifications();
   const [when, setWhen] = useState("");
   const [reason, setReason] = useState("");
   const [phone, setPhone] = useState("");
@@ -177,6 +179,11 @@ export default function AppointmentScheduler() {
       setReason("");
       setWhen("");
       setVideoConsult(false);
+      pushNotification({
+        title: t("notifAppointmentAdded"),
+        body: `${displayName} · ${whenLabel}`,
+        href: "/home/calendar/",
+      });
       notifyAppointmentsChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("bookFailed"));

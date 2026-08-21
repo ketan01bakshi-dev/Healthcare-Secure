@@ -418,10 +418,10 @@ export default function VoiceRecorder({
   const isRecording = status === "recording";
   const isUploading = status === "uploading";
   const buttonLabel = isUploading
-    ? "Transcribing…"
+    ? t("voiceTranscribing")
     : isRecording
-      ? "Stop"
-      : "Record";
+      ? t("stop")
+      : t("record");
 
   const light = embedded;
   const busyRecording = isRecording || isUploading;
@@ -628,10 +628,10 @@ export default function VoiceRecorder({
 
   return (
     <CollapsibleSection
-      aria-label="Prescription voice recorder"
+      aria-label={t("voicePrescription")}
       className="mx-auto w-full max-w-md overflow-x-hidden rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-6 shadow-lg backdrop-blur-sm sm:px-6 sm:py-8"
-      hint="Tap Record, speak clearly, then tap Stop."
-      title="Voice prescription"
+      hint={t("voicePrescriptionHint")}
+      title={t("voicePrescription")}
       variant="dark"
     >
       {body}

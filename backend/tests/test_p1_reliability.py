@@ -296,3 +296,48 @@ def test_auth_status_does_not_list_clinics(client: TestClient) -> None:
     assert "clinics" not in body
     assert "users" not in body
     assert body.get("auth_required") is True
+
+
+def test_visit_count_does_not_increase_on_patient_open(client: TestClient) -> None:
+    """Opening a patient (tokenize) must not inflate visit_count; bookings do."""
+    headers = _session(client, "dr1", "1234")
+    payload = {"patient_name": "Visit Count Pat", "patient_phone": "9111122233"}
+
+    first = client.post("/api/v1/history/tokenize", headers=headers, json=payload)
+    assert first.status_code == 200, first.text
+    blind = first.json()["blind_patient_id"]
+
+    listed = client.get("/api/v1/history/patients", headers=headers)
+    assert listed.status_code == 200, listed.text
+    row = next(p for p in listed.json() if p["blind_patient_id"] == blind)
+    assert row["visit_count"] == 0
+
+    for _ in range(3):
+        again = client.post("/api/v1/history/tokenize", headers=headers, json=payload)
+        assert again.status_code == 200, again.text
+
+    listed2 = client.get("/api/v1/history/patients", headers=headers)
+    row2 = next(p for p in listed2.json() if p["blind_patient_id"] == blind)
+    assert row2["visit_count"] == 0
+
+    from datetime import datetime, timedelta, timezone
+
+    when = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    raw = build_patient_raw_identifier("Visit Count Pat", "9111122233")
+    booked = client.post(
+        "/api/v1/appointments",
+        headers=headers,
+        json={
+            "display_name": "Visit Count Pat",
+            "raw_identifier": raw,
+            "phone": "9111122233",
+            "scheduled_at": when,
+            "reason": "Checkup",
+            "send_sms": False,
+        },
+    )
+    assert booked.status_code == 200, booked.text
+
+    listed3 = client.get("/api/v1/history/patients", headers=headers)
+    row3 = next(p for p in listed3.json() if p["blind_patient_id"] == blind)
+    assert row3["visit_count"] == 1

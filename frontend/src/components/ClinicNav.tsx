@@ -18,9 +18,9 @@ function navItemsForRole(role: ClinicRole): NavItem[] {
   if (role === "lab") {
     return [
       {
-        href: "/today/",
-        labelKey: "navToday",
-        match: (p) => p.startsWith("/today"),
+        href: "/home/calendar/",
+        labelKey: "navCalendar",
+        match: (p) => p.startsWith("/home/calendar") || p.startsWith("/today"),
       },
       {
         href: "/labs/",
@@ -29,9 +29,9 @@ function navItemsForRole(role: ClinicRole): NavItem[] {
         feature: "labs",
       },
       {
-        href: "/more/",
-        labelKey: "navMore",
-        match: (p) => p.startsWith("/more"),
+        href: "/home/profile/",
+        labelKey: "navProfile",
+        match: (p) => p.startsWith("/home/profile") || p.startsWith("/more"),
       },
     ];
   }
@@ -39,14 +39,14 @@ function navItemsForRole(role: ClinicRole): NavItem[] {
   if (role === "receptionist") {
     return [
       {
-        href: "/today/",
-        labelKey: "navToday",
-        match: (p) => p.startsWith("/today"),
+        href: "/home/calendar/",
+        labelKey: "navCalendar",
+        match: (p) => p.startsWith("/home/calendar") || p.startsWith("/today"),
       },
       {
-        href: "/more/",
-        labelKey: "navMore",
-        match: (p) => p.startsWith("/more"),
+        href: "/home/profile/",
+        labelKey: "navProfile",
+        match: (p) => p.startsWith("/home/profile") || p.startsWith("/more"),
       },
     ];
   }
@@ -55,9 +55,9 @@ function navItemsForRole(role: ClinicRole): NavItem[] {
   // Doctor: all of the above + Visit
   const items: NavItem[] = [
     {
-      href: "/today/",
-      labelKey: "navToday",
-      match: (p) => p.startsWith("/today"),
+    href: "/home/calendar/",
+    labelKey: "navCalendar",
+    match: (p) => p.startsWith("/home/calendar") || p.startsWith("/today"),
     },
     {
       href: "/patient/",
@@ -79,9 +79,9 @@ function navItemsForRole(role: ClinicRole): NavItem[] {
     });
   }
   items.push({
-    href: "/more/",
-    labelKey: "navMore",
-    match: (p) => p.startsWith("/more"),
+    href: "/home/profile/",
+    labelKey: "navProfile",
+    match: (p) => p.startsWith("/home/profile") || p.startsWith("/more"),
   });
   return items;
 }

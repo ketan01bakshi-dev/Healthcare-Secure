@@ -90,9 +90,9 @@ export default function WaitingQueue() {
     setBusy(true);
     setStatus(null);
     try {
-      await lockFromAppointment(item.id);
+      const blindId = await lockFromAppointment(item.id);
       setStatus(t("patientOpened"));
-      router.push(pathAfterPatientLock(role));
+      router.push(pathAfterPatientLock(role, blindId));
     } catch {
       setStatus(t("openPatientFailed"));
     } finally {

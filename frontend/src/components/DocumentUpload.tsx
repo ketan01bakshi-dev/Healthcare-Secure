@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import CollapsibleSection from "@/components/CollapsibleSection";
 import PatientAttachments from "@/components/PatientAttachments";
 import { apiFetch } from "@/lib/doctorSession";
+import { useI18n } from "@/lib/i18n";
 import { usePatient } from "@/context/PatientContext";
 
 type Props = {
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export default function DocumentUpload({ onUploaded, labOnly = false }: Props) {
+  const { t } = useI18n();
   const { locked, rawIdentifier, bumpHistory } = usePatient();
   const [kind, setKind] = useState<
     "scanned_prescription" | "diagnostic_report" | "other"
@@ -65,18 +67,14 @@ export default function DocumentUpload({ onUploaded, labOnly = false }: Props) {
 
   return (
     <CollapsibleSection
-      aria-label="Upload scanned documents"
-      hint={
-        labOnly
-          ? "Upload diagnostic lab reports for this patient. The doctor can open them later."
-          : "Attach prior prescriptions or lab/scan reports for this patient."
-      }
-      title={labOnly ? "Lab reports" : "Scanned reports"}
+      aria-label={t("scannedReports")}
+      hint={labOnly ? t("labReportUploadHint") : t("documentUploadHint")}
+      title={labOnly ? t("labReports") : t("scannedReports")}
       variant="dark"
     >
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <label className="text-xs uppercase tracking-wide text-clinical-100/55">
-          Document type
+          {t("documentType")}
           <select
             className="mt-1 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
             disabled={!locked || busy || labOnly}
@@ -91,19 +89,21 @@ export default function DocumentUpload({ onUploaded, labOnly = false }: Props) {
             value={kind}
           >
             {labOnly ? (
-              <option value="diagnostic_report">Diagnostic report</option>
+              <option value="diagnostic_report">{t("docKindDiagnostic")}</option>
             ) : (
               <>
-                <option value="scanned_prescription">Scanned prescription</option>
-                <option value="diagnostic_report">Diagnostic report</option>
-                <option value="other">Other</option>
+                <option value="scanned_prescription">
+                  {t("docKindPrescription")}
+                </option>
+                <option value="diagnostic_report">{t("docKindDiagnostic")}</option>
+                <option value="other">{t("docKindOther")}</option>
               </>
             )}
           </select>
         </label>
 
         <label className="text-xs uppercase tracking-wide text-clinical-100/55">
-          Title (optional)
+          {t("documentTitleOptional")}
           <input
             className="mt-1 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
             disabled={!locked || busy}
@@ -129,13 +129,13 @@ export default function DocumentUpload({ onUploaded, labOnly = false }: Props) {
           disabled={!locked || busy || !file}
           type="submit"
         >
-          {busy ? "Uploading…" : "Upload"}
+          {busy ? t("uploading") : t("upload")}
         </button>
       </form>
 
       {!locked ? (
         <p className="mt-3 text-sm text-clinical-100/50">
-          Select a patient above before uploading.
+          {t("selectPatientBeforeUpload")}
         </p>
       ) : null}
       {status ? (
