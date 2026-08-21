@@ -1,15 +1,18 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 
 import ClinicNav from "@/components/ClinicNav";
-import DoctorGate from "@/components/DoctorGate";
+import DoctorGate, { useActiveClinicRole } from "@/components/DoctorGate";
 import LockedPatientChip from "@/components/LockedPatientChip";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { PatientProvider, usePatient } from "@/context/PatientContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { useSwipeTabs } from "@/hooks/useSwipeTabs";
+import { lightHaptic } from "@/lib/haptics";
 import { I18nProvider } from "@/lib/i18n";
+import { activeHomeTabHref, homeTabHrefsForRole } from "@/lib/tabOrder";
 
 function ClearPatientOnSignOutBridge() {
   const { clearPatient } = usePatient();
@@ -27,6 +30,8 @@ function ClearPatientOnSignOutBridge() {
 
 function ClinicShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "";
+  const router = useRouter();
+  const role = useActiveClinicRole();
   const isHome = pathname.startsWith("/home/");
   const hideChip =
     isHome ||
@@ -34,12 +39,35 @@ function ClinicShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/patient") ||
     pathname.startsWith("/more");
 
+  // Lab desk lives outside HomeShell — still allow swipe between lab tabs
+  const labTabHrefs = useMemo(
+    () => (role === "lab" && !isHome ? homeTabHrefsForRole("lab") : []),
+    [role, isHome],
+  );
+  const labActive = useMemo(
+    () => activeHomeTabHref(pathname, labTabHrefs),
+    [pathname, labTabHrefs],
+  );
+  const onLabSwipe = useCallback(
+    (next: string) => {
+      if (next === labActive) return;
+      lightHaptic();
+      router.push(next);
+    },
+    [labActive, router],
+  );
+  const labSwipe = useSwipeTabs({
+    items: labTabHrefs,
+    active: labActive,
+    onChange: onLabSwipe,
+  });
+
   if (isHome) {
     return <div className="space-y-4">{children}</div>;
   }
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24" {...(labTabHrefs.length ? labSwipe : {})}>
       {!hideChip ? <LockedPatientChip /> : null}
       {children}
       <ClinicNav />

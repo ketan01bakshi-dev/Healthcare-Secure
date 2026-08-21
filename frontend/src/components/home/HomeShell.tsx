@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import AppHeader from "@/components/home/AppHeader";
 import BurgerDrawer from "@/components/home/BurgerDrawer";
@@ -11,6 +11,9 @@ import HomeTabNav from "@/components/home/HomeTabNav";
 import NotificationFab from "@/components/home/NotificationFab";
 import NotificationSheet from "@/components/home/NotificationSheet";
 import { useActiveClinicRole } from "@/components/DoctorGate";
+import { useSwipeTabs } from "@/hooks/useSwipeTabs";
+import { activeHomeTabHref, homeTabHrefsForRole } from "@/lib/tabOrder";
+import { lightHaptic } from "@/lib/haptics";
 
 type Props = {
   children: ReactNode;
@@ -26,6 +29,7 @@ export default function HomeShell({
   showNotification = true,
 }: Props) {
   const pathname = usePathname() || "";
+  const router = useRouter();
   const role = useActiveClinicRole();
   const [menuOpen, setMenuOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -38,11 +42,32 @@ export default function HomeShell({
     pathname === "/home/patient/" ||
     pathname.startsWith("/home/patient/?");
 
+  const tabHrefs = useMemo(() => homeTabHrefsForRole(role), [role]);
+  const activeHref = useMemo(
+    () => activeHomeTabHref(pathname, tabHrefs),
+    [pathname, tabHrefs],
+  );
+
+  const onSwipeTab = useCallback(
+    (next: string) => {
+      if (next === activeHref) return;
+      lightHaptic();
+      router.push(next);
+    },
+    [activeHref, router],
+  );
+
+  const swipe = useSwipeTabs({
+    items: hideChrome ? [] : tabHrefs,
+    active: activeHref,
+    onChange: onSwipeTab,
+  });
+
   const fabBottom = "bottom-[7.5rem]";
   const notifBottom = "bottom-[4.5rem]";
 
   return (
-    <div className="pb-28">
+    <div className="pb-28" {...(hideChrome ? {} : swipe)}>
       {!hideChrome && title ? (
         <AppHeader
           onMenuClick={() => setMenuOpen(true)}

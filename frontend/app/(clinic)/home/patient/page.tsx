@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import AppHeader from "@/components/home/AppHeader";
 import PatientAppointmentTab from "@/components/patient-card/PatientAppointmentTab";
@@ -12,6 +12,10 @@ import PatientVisitTab from "@/components/patient-card/PatientVisitTab";
 import PatientVitalsTab from "@/components/patient-card/PatientVitalsTab";
 import { useActiveClinicRole, useClinicFeatures } from "@/components/DoctorGate";
 import type { PatientCardTab } from "@/lib/clinicRoutes";
+import { patientCardPath } from "@/lib/clinicRoutes";
+import { useSwipeTabs } from "@/hooks/useSwipeTabs";
+import { patientTabsForRole } from "@/lib/tabOrder";
+import { lightHaptic } from "@/lib/haptics";
 import { useI18n } from "@/lib/i18n";
 import { usePatient } from "@/context/PatientContext";
 
@@ -26,6 +30,26 @@ export default function PatientCardPage() {
   const { lockFromDirectory } = usePatient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const visibleTabs = useMemo(
+    () => patientTabsForRole(role, has),
+    [role, has],
+  );
+
+  const onSwipeTab = useCallback(
+    (next: string) => {
+      if (!patientId || next === tab) return;
+      lightHaptic();
+      router.push(patientCardPath(patientId, next as PatientCardTab));
+    },
+    [patientId, router, tab],
+  );
+
+  const swipe = useSwipeTabs({
+    items: visibleTabs,
+    active: tab,
+    onChange: onSwipeTab,
+  });
 
   useEffect(() => {
     if (!patientId) {
@@ -84,7 +108,7 @@ export default function PatientCardPage() {
   }
 
   return (
-    <div className="pb-8">
+    <div className="pb-8" {...swipe}>
       <AppHeader
         onMenuClick={() => router.push("/home/patients/")}
         title={t("patient")}

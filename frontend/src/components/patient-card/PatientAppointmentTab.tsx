@@ -15,12 +15,7 @@ export default function PatientAppointmentTab() {
   return (
     <div className="space-y-6 pt-4">
       <PatientBar title={t("details")} />
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-          {t("appointments")}
-        </h2>
-        <AppointmentScheduler />
-      </section>
+      <AppointmentScheduler />
       {showBilling ? <PatientBilling /> : null}
     </div>
   );
