@@ -14,6 +14,7 @@ import {
 } from "@/lib/vitalsValidation";
 import CollapsibleSection from "@/components/CollapsibleSection";
 import { usePatient } from "@/context/PatientContext";
+import { useI18n } from "@/lib/i18n";
 
 const EMPTY: VitalsFields = {
   blood_pressure: "",
@@ -28,16 +29,27 @@ const EMPTY: VitalsFields = {
 
 type FieldErrors = Partial<Record<VitalsFieldKey | "notes", string>>;
 
-const FIELD_META: { key: VitalsFieldKey; label: string }[] = [
-  { key: "blood_pressure", label: "Blood pressure (mmHg)" },
-  { key: "pulse", label: "Pulse (bpm)" },
-  { key: "temperature", label: "Temperature" },
-  { key: "spo2", label: "SpO₂ (%)" },
-  { key: "weight", label: "Weight (kg)" },
-  { key: "height", label: "Height (cm)" },
-  { key: "respiratory_rate", label: "Respiratory rate (/min)" },
-  { key: "hemoglobin", label: "Hemoglobin (g/dL)" },
+const FIELD_KEYS: VitalsFieldKey[] = [
+  "blood_pressure",
+  "pulse",
+  "temperature",
+  "spo2",
+  "weight",
+  "height",
+  "respiratory_rate",
+  "hemoglobin",
 ];
+
+const FIELD_LABEL_KEYS: Record<VitalsFieldKey, string> = {
+  blood_pressure: "vitalBp",
+  pulse: "vitalPulse",
+  temperature: "vitalTemperature",
+  spo2: "vitalSpo2",
+  weight: "vitalWeight",
+  height: "vitalHeight",
+  respiratory_rate: "vitalRespRate",
+  hemoglobin: "vitalHb",
+};
 
 type TempUnit = "F" | "C";
 const TEMP_KEY = "healthcare_temp_unit";
@@ -61,6 +73,7 @@ function isOfflineRetryable(status: number): boolean {
 }
 
 export default function VitalsForm() {
+  const { t } = useI18n();
   const { locked, rawIdentifier, bumpHistory, patientAgeYears } = usePatient();
   const [vitals, setVitals] = useState<VitalsFields>(EMPTY);
   const [notes, setNotes] = useState("");
@@ -189,34 +202,34 @@ export default function VitalsForm() {
 
   return (
     <CollapsibleSection
-      aria-label="Vitals and diagnostics"
-      hint="Blood pressure, pulse, and other readings for this visit."
-      title="Vitals & Notes"
+      aria-label={t("vitalsNotes")}
+      hint={t("vitalsNotesHint")}
+      title={t("vitalsNotes")}
     >
       <form className="grid gap-3 sm:grid-cols-2" onSubmit={onSubmit}>
         <label className="block text-xs uppercase tracking-wide text-slate-500 sm:col-span-2">
-          Temperature unit
+          {t("tempUnit")}
           <select
-            aria-label="Temperature unit"
+            aria-label={t("tempUnit")}
             className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
             disabled={busy}
             onChange={(e) => setUnit(e.target.value as TempUnit)}
             value={tempUnit}
           >
-            <option value="F">°F (Fahrenheit)</option>
-            <option value="C">°C (Celsius)</option>
+            <option value="F">{t("tempFahrenheit")}</option>
+            <option value="C">{t("tempCelsius")}</option>
           </select>
         </label>
-        {FIELD_META.map((field) => {
-          const err = errors[field.key];
+        {FIELD_KEYS.map((key) => {
+          const err = errors[key];
           const label =
-            field.key === "temperature"
-              ? `Temperature (°${tempUnit})`
-              : field.label;
+            key === "temperature"
+              ? `${t("vitalTemperature")} (°${tempUnit})`
+              : t(FIELD_LABEL_KEYS[key]);
           return (
             <label
               className="block text-xs uppercase tracking-wide text-slate-500"
-              key={field.key}
+              key={key}
             >
               {label}
               <input
@@ -228,22 +241,19 @@ export default function VitalsForm() {
                 }`}
                 disabled={busy}
                 onBlur={() => {
-                  const message = validateVitalField(
-                    field.key,
-                    vitals[field.key],
-                  );
+                  const message = validateVitalField(key, vitals[key]);
                   setErrors((prev) => {
                     const next = { ...prev };
-                    if (message) next[field.key] = message;
-                    else delete next[field.key];
+                    if (message) next[key] = message;
+                    else delete next[key];
                     return next;
                   });
                 }}
-                onChange={(e) => setVital(field.key, e.target.value)}
+                onChange={(e) => setVital(key, e.target.value)}
                 placeholder={
-                  field.key === "blood_pressure" ? "e.g. 120/80" : undefined
+                  key === "blood_pressure" ? "e.g. 120/80" : undefined
                 }
-                value={vitals[field.key]}
+                value={vitals[key]}
               />
               {err ? (
                 <span className="mt-1 block normal-case tracking-normal text-red-600">
@@ -254,7 +264,7 @@ export default function VitalsForm() {
           );
         })}
         <label className="block text-xs uppercase tracking-wide text-slate-500 sm:col-span-2">
-          Notes
+          {t("diagnosticNotes")}
           <textarea
             aria-invalid={!!errors.notes}
             className={`mt-1 min-h-24 w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 ${
@@ -277,7 +287,7 @@ export default function VitalsForm() {
           disabled={busy || invalid}
           type="submit"
         >
-          {busy ? "Saving…" : "Save vitals"}
+          {busy ? t("savingEllipsis") : t("saveVitals")}
         </button>
       </form>
 

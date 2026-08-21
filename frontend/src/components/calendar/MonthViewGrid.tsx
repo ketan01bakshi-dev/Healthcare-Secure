@@ -5,9 +5,18 @@ import { useMemo } from "react";
 
 import type { AppointmentRow } from "@/lib/appointmentGroups";
 import { parseApiDate } from "@/lib/datetimeIst";
+import { useI18n } from "@/lib/i18n";
 
 const IST = "Asia/Kolkata";
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_KEYS = [
+  "weekdaySun",
+  "weekdayMon",
+  "weekdayTue",
+  "weekdayWed",
+  "weekdayThu",
+  "weekdayFri",
+  "weekdaySat",
+] as const;
 
 type Props = {
   items: AppointmentRow[];
@@ -27,6 +36,7 @@ function ymdInIst(d: Date): { y: number; m: number; day: number } {
 }
 
 export default function MonthViewGrid({ items, month }: Props) {
+  const { t, locale } = useI18n();
   const { y, m } = ymdInIst(month);
   const counts = useMemo(() => {
     const map = new Map<string, number>();
@@ -48,7 +58,7 @@ export default function MonthViewGrid({ items, month }: Props) {
     cells.push({ day: d, key: `${y}-${m}-${d}` });
   }
 
-  const monthLabel = month.toLocaleDateString("en-IN", {
+  const monthLabel = month.toLocaleDateString(locale === "hi" ? "hi-IN" : "en-IN", {
     timeZone: IST,
     month: "long",
     year: "numeric",
@@ -60,8 +70,8 @@ export default function MonthViewGrid({ items, month }: Props) {
         {monthLabel}
       </p>
       <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-slate-500">
-        {WEEKDAYS.map((w) => (
-          <span key={w}>{w}</span>
+        {WEEKDAY_KEYS.map((key) => (
+          <span key={key}>{t(key)}</span>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">

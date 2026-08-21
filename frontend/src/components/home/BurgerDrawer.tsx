@@ -56,7 +56,7 @@ export default function BurgerDrawer({ open, onClose }: Props) {
       <aside className="fixed right-0 top-0 z-50 flex h-full w-[min(18rem,85vw)] flex-col border-l border-slate-200 bg-white pt-[max(1rem,env(safe-area-inset-top))] shadow-xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b border-slate-100 px-4 pb-3 dark:border-slate-800">
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Menu
+            {t("menu")}
           </p>
           <button
             aria-label={t("cancel")}

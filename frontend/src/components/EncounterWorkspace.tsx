@@ -181,6 +181,7 @@ function MedicationsEditor({
   onChange: (next: MedicationDraft[]) => void;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -197,7 +198,7 @@ function MedicationsEditor({
         </button>
       </div>
       {medications.length === 0 ? (
-        <p className="text-sm text-slate-400">No medications yet.</p>
+        <p className="text-sm text-slate-400">{t("noMedicationsYet")}</p>
       ) : (
         medications.map((med, index) => (
           <div
@@ -230,7 +231,7 @@ function MedicationsEditor({
               }
               type="button"
             >
-              Remove
+              {t("remove")}
             </button>
           </div>
         ))
@@ -652,7 +653,7 @@ export default function EncounterWorkspace() {
               onClick={clearSession}
               type="button"
             >
-              Clear
+              {t("clear")}
             </button>
           ) : null
         }
@@ -713,7 +714,7 @@ export default function EncounterWorkspace() {
                     onClick={() => setDemoOpen((v) => !v)}
                     type="button"
                   >
-                    {demoOpen ? "Hide demo scripts" : "Demo scripts"}
+                    {demoOpen ? t("hideDemoScripts") : t("demoScripts")}
                   </button>
                   {demoOpen ? (
                     <select
@@ -736,7 +737,7 @@ export default function EncounterWorkspace() {
                         setWriteError(null);
                       }}
                     >
-                      <option value="">Load a demo transcript…</option>
+                      <option value="">{t("loadDemoTranscript")}</option>
                       {demoScripts.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.label}
@@ -748,7 +749,7 @@ export default function EncounterWorkspace() {
 
                 <div className="space-y-3">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Voice notes ({transcripts.length})
+                    {t("voiceNotes")} ({transcripts.length})
                   </p>
                   {transcripts.length === 0 ? (
                     <p className="text-sm text-slate-400">
@@ -770,7 +771,7 @@ export default function EncounterWorkspace() {
                               onClick={() => removeTranscript(item.id)}
                               type="button"
                             >
-                              Remove
+                              {t("remove")}
                             </button>
                           </div>
                           <p className="mt-1 break-words text-sm text-slate-900">
@@ -786,7 +787,7 @@ export default function EncounterWorkspace() {
                     onClick={() => void parseForReview()}
                     type="button"
                   >
-                    {parsing ? "Preparing…" : t("rxStepReview")}
+                    {parsing ? t("preparing") : t("rxStepReview")}
                   </button>
                 </div>
               </div>
@@ -952,12 +953,12 @@ export default function EncounterWorkspace() {
               type="button"
             >
               {checkingHints
-                ? "Checking Rx hints…"
+                ? t("rxHintsChecking")
                 : signing
-                  ? "Signing…"
+                  ? t("signing")
                   : rxHints.length > 0 && hintsChecked
-                    ? "Sign anyway"
-                    : "Sign prescription"}
+                    ? t("signAnyway")
+                    : t("signPrescription")}
             </button>
           </div>
         ) : null}

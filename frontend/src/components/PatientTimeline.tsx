@@ -7,6 +7,7 @@ import { usePatient } from "@/context/PatientContext";
 import { formatIst } from "@/lib/datetimeIst";
 import { apiFetch } from "@/lib/doctorSession";
 import { openAttachmentNative } from "@/lib/fileActions";
+import { useI18n } from "@/lib/i18n";
 
 type Medication = {
   name?: string;
@@ -165,6 +166,7 @@ function TimelineSkeleton() {
 }
 
 export default function PatientTimeline() {
+  const { t } = useI18n();
   const { locked, rawIdentifier, historyVersion } = usePatient();
   const [status, setStatus] = useState<Status>("idle");
   const [records, setRecords] = useState<HistoryRecord[]>([]);
@@ -228,15 +230,15 @@ export default function PatientTimeline() {
 
   return (
     <CollapsibleSection
-      aria-label="Patient visit timeline"
+      aria-label={t("patientTimeline")}
       className="mx-auto w-full max-w-3xl rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-8 shadow-lg backdrop-blur-sm sm:px-8"
-      hint="Past visits, prescriptions, and reports for this patient."
-      title="Patient Timeline"
+      hint={t("patientTimelineHint")}
+      title={t("patientTimeline")}
       variant="dark"
     >
       {!locked ? (
         <p className="text-center text-sm text-clinical-100/45">
-          Select a patient above to see their history.
+          {t("selectPatientForHistory")}
         </p>
       ) : null}
 
@@ -251,11 +253,10 @@ export default function PatientTimeline() {
       {status === "empty" ? (
         <div className="mt-10 rounded-xl border border-dashed border-clinical-100/20 px-6 py-12 text-center">
           <p className="text-base font-medium text-clinical-50">
-            No history for this patient yet.
+            {t("noHistoryYet")}
           </p>
           <p className="mt-2 text-sm text-clinical-100/60">
-            Write a prescription or upload a scanned report to start the
-            timeline.
+            {t("noHistoryHint")}
           </p>
         </div>
       ) : null}

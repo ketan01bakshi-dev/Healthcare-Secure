@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import CollapsibleSection from "@/components/CollapsibleSection";
 import { apiFetch } from "@/lib/doctorSession";
 import { printAttachmentBlob } from "@/lib/fileActions";
+import { useI18n } from "@/lib/i18n";
 
 type Props = {
   /** Optional PDF as base64; when omitted, only the URL mint path is unused. */
@@ -56,6 +57,7 @@ export default function PrescriptionShare({
   patientPhone = null,
   embedded = false,
 }: Props) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -206,7 +208,7 @@ export default function PrescriptionShare({
           onClick={() => void onPrint()}
           type="button"
         >
-          {busy ? "Preparing…" : "Print prescription"}
+          {busy ? t("preparing") : t("printRx")}
         </button>
 
         {patientPhone ? (
@@ -216,7 +218,7 @@ export default function PrescriptionShare({
             onClick={() => void onSmsPatient()}
             type="button"
           >
-            {busy ? "Preparing…" : `SMS to ${patientPhone}`}
+            {busy ? t("preparing") : `SMS to ${patientPhone}`}
           </button>
         ) : null}
 
@@ -227,7 +229,7 @@ export default function PrescriptionShare({
             onClick={() => void onNativeShare()}
             type="button"
           >
-            {busy ? "Preparing…" : "Share via phone"}
+            {busy ? t("preparing") : t("shareViaPhone")}
           </button>
         ) : null}
 
@@ -237,7 +239,7 @@ export default function PrescriptionShare({
           onClick={() => void onCopyLink()}
           type="button"
         >
-          {copied ? "Copied" : "Copy message link"}
+          {copied ? t("copied") : t("copyMessageLink")}
         </button>
       </div>
 
@@ -254,10 +256,8 @@ export default function PrescriptionShare({
 
   if (embedded) {
     return (
-      <div aria-label="Share prescription" className="space-y-3">
-        <p className="text-sm text-slate-600">
-          Print for the counter first, then share by SMS if needed.
-        </p>
+      <div aria-label={t("prescriptionReady")} className="space-y-3">
+        <p className="text-sm text-slate-600">{t("prescriptionReadyHint")}</p>
         {actions}
       </div>
     );
@@ -265,9 +265,9 @@ export default function PrescriptionShare({
 
   return (
     <CollapsibleSection
-      aria-label="Share prescription"
-      hint="Print for the counter first, then share by SMS if needed."
-      title="Prescription Ready"
+      aria-label={t("prescriptionReady")}
+      hint={t("prescriptionReadyHint")}
+      title={t("prescriptionReady")}
       variant="dark"
     >
       {actions}

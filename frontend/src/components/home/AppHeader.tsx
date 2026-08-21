@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n";
+
 type Props = {
   title: string;
   onMenuClick?: () => void;
@@ -17,11 +19,12 @@ export default function AppHeader({
   leading,
   trailing,
 }: Props) {
+  const { t } = useI18n();
   return (
     <header className="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-3 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:-mx-6 sm:px-6">
       {showMenu ? (
         <button
-          aria-label="Menu"
+          aria-label={t("menu")}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
           onClick={onMenuClick}
           type="button"

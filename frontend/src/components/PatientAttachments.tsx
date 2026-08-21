@@ -6,6 +6,7 @@ import CollapsibleSection from "@/components/CollapsibleSection";
 import { apiFetch } from "@/lib/doctorSession";
 import { usePatient } from "@/context/PatientContext";
 import { formatIst } from "@/lib/datetimeIst";
+import { useI18n } from "@/lib/i18n";
 import {
   blobToViewerPayload,
   openAttachmentNative,
@@ -136,6 +137,7 @@ export default function PatientAttachments({
   /** Render list only (no section chrome) — e.g. inside Scanned reports. */
   embedded?: boolean;
 } = {}) {
+  const { t } = useI18n();
   const { locked, rawIdentifier, historyVersion, bumpHistory } = usePatient();
   const [items, setItems] = useState<AttachmentItem[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">(
@@ -435,7 +437,7 @@ export default function PatientAttachments({
           aria-label="Patient attachments"
           className="mx-auto w-full max-w-3xl rounded-2xl border border-clinical-500/25 bg-clinical-900/70 px-4 py-6 sm:px-6"
           hint={headerNote}
-          title="Attachments"
+          title={t("attachments")}
           variant="dark"
         >
           {listBody}

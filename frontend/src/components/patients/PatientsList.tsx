@@ -41,22 +41,35 @@ type Props = {
 
 /* ── Match badge ──────────────────────────────────────────────────────────── */
 
-const BADGE: Record<ClinicalSearchMatch["match_type"], { label: string; cls: string }> = {
-  name:        { label: "Patient",     cls: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
-  medication:  { label: "Medication",  cls: "bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200" },
-  diagnosis:   { label: "Diagnosis",   cls: "bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200" },
-  symptom:     { label: "Symptom",     cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200" },
-  treatment:   { label: "Treatment",   cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200" },
-  observation: { label: "Observation", cls: "bg-orange-100 text-orange-800 dark:bg-orange-900/60 dark:text-orange-200" },
-  lab_result:  { label: "Lab",         cls: "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200" },
-  document:    { label: "Document",    cls: "bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200" },
+const BADGE_CLS: Record<ClinicalSearchMatch["match_type"], string> = {
+  name: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+  medication: "bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200",
+  diagnosis: "bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200",
+  symptom: "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200",
+  treatment: "bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200",
+  observation: "bg-orange-100 text-orange-800 dark:bg-orange-900/60 dark:text-orange-200",
+  lab_result: "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200",
+  document: "bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200",
+};
+
+const BADGE_LABEL_KEY: Record<ClinicalSearchMatch["match_type"], string> = {
+  name: "searchMatchPatient",
+  medication: "searchMatchMedication",
+  diagnosis: "searchMatchDiagnosis",
+  symptom: "searchMatchSymptom",
+  treatment: "searchMatchTreatment",
+  observation: "searchMatchObservation",
+  lab_result: "searchMatchLab",
+  document: "searchMatchDocument",
 };
 
 function MatchBadge({ type }: { type: ClinicalSearchMatch["match_type"] }) {
-  const b = BADGE[type] ?? BADGE.name;
+  const { t } = useI18n();
   return (
-    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${b.cls}`}>
-      {b.label}
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${BADGE_CLS[type] ?? BADGE_CLS.name}`}
+    >
+      {t(BADGE_LABEL_KEY[type] ?? "searchMatchPatient")}
     </span>
   );
 }
@@ -188,7 +201,7 @@ export default function PatientsList({ onSelect }: Props) {
               className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
               onClick={() => { setQuery(""); inputRef.current?.focus(); }}
               type="button"
-              aria-label="Clear"
+              aria-label={t("clearSearch")}
             >
               ✕
             </button>
@@ -282,7 +295,11 @@ export default function PatientsList({ onSelect }: Props) {
                             <span className="block truncate text-xs text-slate-500">
                               {item.phone_last4 ? `***${item.phone_last4}` : "—"}
                               {item.clinic_mrn ? ` · ${item.clinic_mrn}` : ""}
-                              {` · ${item.visit_count} visit${item.visit_count === 1 ? "" : "s"}`}
+                              {` · ${item.visit_count} ${
+                                item.visit_count === 1
+                                  ? t("visitOne")
+                                  : t("visitMany")
+                              }`}
                               {item.last_seen_at ? ` · ${formatIst(item.last_seen_at)}` : ""}
                             </span>
                           </span>

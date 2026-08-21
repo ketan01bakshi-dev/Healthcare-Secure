@@ -193,26 +193,32 @@ export default function PatientBar({ title }: PatientBarProps) {
       <div className="mt-4 space-y-3">
           <p className="text-base font-medium text-slate-900">{patientName}</p>
           {patientPhone ? (
-            <p className="text-sm text-slate-700">Mobile: {patientPhone}</p>
+            <p className="text-sm text-slate-700">
+              {t("mobileLabel")}: {patientPhone}
+            </p>
           ) : null}
           {clinicMrn ? (
-            <p className="text-sm text-slate-700">MRN: {clinicMrn}</p>
+            <p className="text-sm text-slate-700">
+              {t("mrnLabel")}: {clinicMrn}
+            </p>
           ) : null}
           {abhaNumber ? (
-            <p className="text-sm text-slate-700">ABHA: {abhaNumber}</p>
+            <p className="text-sm text-slate-700">
+              {t("abhaLabel")}: {abhaNumber}
+            </p>
           ) : null}
 
           {editingPhone ? (
             <form className="space-y-3" onSubmit={onChangePhone}>
               <input
-                aria-label="New mobile"
+                aria-label={t("newMobilePlaceholder")}
                 className="min-h-12 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm"
                 inputMode="numeric"
                 maxLength={14}
                 onChange={(e) =>
                   setNewPhoneDraft(digitsOnly(e.target.value).slice(0, 10))
                 }
-                placeholder="New 10-digit mobile"
+                placeholder={t("newMobilePlaceholder")}
                 value={newPhoneDraft}
               />
               <div className="flex flex-wrap gap-2">
@@ -221,14 +227,14 @@ export default function PatientBar({ title }: PatientBarProps) {
                   disabled={busy || !canChangePhone}
                   type="submit"
                 >
-                  Save new mobile
+                  {t("saveNewMobile")}
                 </button>
                 <button
                   className="min-h-12 rounded-lg border border-slate-200 px-4 text-sm"
                   onClick={() => setEditingPhone(false)}
                   type="button"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </div>
             </form>

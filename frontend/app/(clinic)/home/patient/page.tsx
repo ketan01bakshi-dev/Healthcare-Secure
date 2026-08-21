@@ -71,7 +71,7 @@ export default function PatientCardPage() {
 
   const backButton = (
     <button
-      aria-label="Back"
+      aria-label={t("back")}
       className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-200"
       onClick={() => router.push("/home/patients/")}
       type="button"

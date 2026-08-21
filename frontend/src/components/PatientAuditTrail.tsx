@@ -6,6 +6,7 @@ import CollapsibleSection from "@/components/CollapsibleSection";
 import { usePatient } from "@/context/PatientContext";
 import { formatIst } from "@/lib/datetimeIst";
 import { apiFetch } from "@/lib/doctorSession";
+import { useI18n } from "@/lib/i18n";
 
 type Actor = { display_name?: string; role?: string };
 
@@ -68,6 +69,7 @@ function whoLabel(data: EncounterData | null): string {
 }
 
 export default function PatientAuditTrail() {
+  const { t } = useI18n();
   const { locked, rawIdentifier, historyVersion } = usePatient();
   const [items, setItems] = useState<
     { id: string; when: string; what: string; who: string }[]
@@ -123,15 +125,15 @@ export default function PatientAuditTrail() {
 
   return (
     <CollapsibleSection
-      aria-label="Activity log"
-      hint="Who changed what for this patient (vitals, reports, prescriptions, mobile updates)."
-      title="Activity Log"
+      aria-label={t("activityLog")}
+      hint={t("activityLogHint")}
+      title={t("activityLog")}
     >
       {status === "loading" ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <p className="text-sm text-slate-500">{t("loadingEllipsis")}</p>
       ) : null}
       {status === "empty" ? (
-        <p className="text-sm text-slate-500">No activity yet.</p>
+        <p className="text-sm text-slate-500">{t("noActivityYet")}</p>
       ) : null}
       {status === "ready" ? (
         <ul className="divide-y divide-slate-100">

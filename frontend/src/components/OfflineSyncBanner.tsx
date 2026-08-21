@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { flushOfflineQueue, pendingOfflineCount } from "@/lib/offlineQueue";
+import { useI18n } from "@/lib/i18n";
 
 export default function OfflineSyncBanner() {
+  const { t } = useI18n();
   const [pending, setPending] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export default function OfflineSyncBanner() {
   if (!pending && !msg) return null;
   return (
     <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-      {pending ? `${pending} offline item(s) waiting to sync. ` : null}
+      {pending ? `${pending} ${t("offlinePending")} ` : null}
       {msg}
       {pending ? (
         <button
@@ -53,7 +55,7 @@ export default function OfflineSyncBanner() {
           }
           type="button"
         >
-          Sync now
+          {t("syncNow")}
         </button>
       ) : null}
     </p>
