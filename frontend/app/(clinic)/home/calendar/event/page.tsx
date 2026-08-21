@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 
 import { useActiveClinicRole } from "@/components/DoctorGate";
 import AppHeader from "@/components/home/AppHeader";
-import BurgerDrawer from "@/components/home/BurgerDrawer";
 import type { AppointmentRow } from "@/lib/appointmentGroups";
 import { formatIst, formatIstTime } from "@/lib/datetimeIst";
 import { pathAfterPatientLock } from "@/lib/clinicRoutes";
@@ -25,7 +24,6 @@ export default function AppointmentEventPage() {
   const [item, setItem] = useState<AppointmentRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -88,7 +86,7 @@ export default function AppointmentEventPage() {
             ←
           </button>
         }
-        onMenuClick={() => setMenuOpen(true)}
+        showMenu={false}
         title={t("appointmentDetails")}
       />
       <div className="mt-4 flex gap-4">
@@ -142,7 +140,6 @@ export default function AppointmentEventPage() {
           {status}
         </p>
       ) : null}
-      <BurgerDrawer onClose={() => setMenuOpen(false)} open={menuOpen} />
     </div>
   );
 }

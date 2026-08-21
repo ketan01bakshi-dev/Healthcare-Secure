@@ -29,10 +29,14 @@ def upsert_clinic_patient(
     phone_digits: str = "",
     clinic_mrn: str = "",
     age_years: float | None = None,
-    bump_visit: bool = True,
+    bump_visit: bool = False,
     seen_at: datetime | None = None,
 ) -> ClinicPatient:
-    """Create or refresh a roster row. Encrypted phone kept when digits provided."""
+    """Create or refresh a roster row. Encrypted phone kept when digits provided.
+
+    Visit counts shown in the UI come from compute_visit_counts (appointments +
+    clinical visits), not from bump_visit. Keep bump_visit=False on chart open.
+    """
     now = seen_at or datetime.now(timezone.utc)
     name = (display_name or "").strip()[:120]
     digits = "".join(c for c in (phone_digits or "") if c.isdigit())
@@ -58,7 +62,7 @@ def upsert_clinic_patient(
             phone_encrypted=encrypt_phone(digits) if digits else "",
             clinic_mrn=mrn,
             age_years=age_years,
-            visit_count=1,
+            visit_count=0,
             first_seen_at=now,
             last_seen_at=now,
         )
@@ -147,6 +151,70 @@ def list_clinic_patients_stmt(
     if seen_to is not None:
         stmt = stmt.where(ClinicPatient.last_seen_at <= seen_to)
     return stmt.order_by(ClinicPatient.last_seen_at.desc())
+
+
+def compute_visit_counts(
+    db: Session,
+    clinic_id: str,
+    blind_patient_ids: list[str] | None = None,
+) -> dict[str, int]:
+    """
+    Visit count = non-cancelled appointments + signed prescription/visit encounters.
+
+    Opening a patient chart must never change this (tokenize uses bump_visit=False).
+    """
+    from collections import Counter
+
+    from app.models.record import ClinicalRecord
+    from sqlalchemy import func
+
+    counts: Counter[str] = Counter()
+
+    appt_stmt = select(Appointment.blind_patient_id, func.count()).where(
+        Appointment.clinic_id == clinic_id,
+        Appointment.status != "cancelled",
+    )
+    if blind_patient_ids is not None:
+        if not blind_patient_ids:
+            return {}
+        appt_stmt = appt_stmt.where(
+            Appointment.blind_patient_id.in_(blind_patient_ids)
+        )
+    appt_stmt = appt_stmt.group_by(Appointment.blind_patient_id)
+    for pid, n in db.execute(appt_stmt).all():
+        if pid:
+            counts[str(pid)] += int(n or 0)
+
+    # Prescription / visit clinical records = actual clinical visits
+    rec_stmt = select(ClinicalRecord.blind_patient_id, ClinicalRecord.encounter_data).where(
+        ClinicalRecord.clinic_id == clinic_id,
+    )
+    if blind_patient_ids is not None:
+        rec_stmt = rec_stmt.where(
+            ClinicalRecord.blind_patient_id.in_(blind_patient_ids)
+        )
+    for pid, data in db.execute(rec_stmt).all():
+        if not pid:
+            continue
+        enc = data if isinstance(data, dict) else {}
+        if enc.get("type") in ("prescription", "visit"):
+            counts[str(pid)] += 1
+
+    return dict(counts)
+
+
+def bump_patient_visit(
+    db: Session,
+    *,
+    clinic_id: str,
+    blind_patient_id: str,
+) -> None:
+    """Increment stored visit_count for a known roster patient (best-effort)."""
+    row = db.get(ClinicPatient, (clinic_id, blind_patient_id))
+    if row is None:
+        return
+    row.visit_count = int(row.visit_count or 0) + 1
+    row.last_seen_at = datetime.now(timezone.utc)
 
 
 def normalize_age_years(value: float | int | None) -> float | None:

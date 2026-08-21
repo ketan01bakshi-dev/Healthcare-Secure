@@ -206,7 +206,7 @@ def tokenize_patient(
                 "display_name": session.display_name,
                 "role": session.role,
             },
-            bump_visit=session.role != "lab",
+            bump_visit=False,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -258,6 +258,7 @@ def list_clinic_patients(
     from datetime import timedelta
 
     from app.services.clinic_patients import (
+        compute_visit_counts,
         list_clinic_patients_stmt,
         sync_patients_from_appointments,
     )
@@ -277,13 +278,18 @@ def list_clinic_patients(
         session.clinic_id, q=q, seen_from=seen_from, seen_to=None
     )
     rows = db.scalars(stmt).all()
+    visit_counts = compute_visit_counts(
+        db,
+        session.clinic_id,
+        [r.blind_patient_id for r in rows],
+    )
     return [
         ClinicPatientOut(
             blind_patient_id=r.blind_patient_id,
             display_name=r.display_name,
             phone_last4=r.phone_last4 or "",
             clinic_mrn=r.clinic_mrn or "",
-            visit_count=int(r.visit_count or 1),
+            visit_count=int(visit_counts.get(r.blind_patient_id, 0)),
             last_seen_at=r.last_seen_at.isoformat() if r.last_seen_at else None,
             first_seen_at=r.first_seen_at.isoformat() if r.first_seen_at else None,
             has_phone=bool(r.phone_encrypted),

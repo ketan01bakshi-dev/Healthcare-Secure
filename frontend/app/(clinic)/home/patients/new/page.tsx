@@ -73,7 +73,7 @@ export default function NewPatientPage() {
             ←
           </button>
         }
-        onMenuClick={() => router.back()}
+        showMenu={false}
         title={t("createPatient")}
       />
       <form className="mt-4 space-y-4" onSubmit={onSave}>
