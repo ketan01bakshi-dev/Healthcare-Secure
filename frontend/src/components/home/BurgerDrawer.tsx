@@ -4,12 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import OverlayBackdrop from "@/components/overlays/OverlayBackdrop";
-import { useActiveClinicRole, useClinicFeatures } from "@/components/DoctorGate";
-import { usePatient } from "@/context/PatientContext";
-import {
-  patientCardPath,
-  type PatientCardTab,
-} from "@/lib/clinicRoutes";
+import { useActiveClinicRole } from "@/components/DoctorGate";
 import { useI18n } from "@/lib/i18n";
 
 type Props = {
@@ -26,20 +21,11 @@ type DrawerItem = {
 export default function BurgerDrawer({ open, onClose }: Props) {
   const { t } = useI18n();
   const role = useActiveClinicRole();
-  const { has } = useClinicFeatures();
   const pathname = usePathname() || "";
-  const { locked, blindPatientId } = usePatient();
 
   if (!open) return null;
 
   const onCalendar = pathname.startsWith("/home/calendar");
-
-  function patientHref(tab: PatientCardTab): string {
-    if (locked && blindPatientId) {
-      return patientCardPath(blindPatientId, tab);
-    }
-    return "/home/patients/";
-  }
 
   const clinicItems: DrawerItem[] = [];
 
@@ -57,37 +43,6 @@ export default function BurgerDrawer({ open, onClose }: Props) {
     match: (p) =>
       p.startsWith("/home/patients") || p.startsWith("/home/patient"),
   });
-
-  if (role === "doctor" || role === "staff") {
-    clinicItems.push({
-      href: patientHref("vitals"),
-      labelKey: "navPatient",
-      match: (p) =>
-        p.includes("tab=vitals") ||
-        (p.startsWith("/patient") && !p.startsWith("/home/patient")),
-    });
-    clinicItems.push({
-      href: patientHref("records"),
-      labelKey: "navRecords",
-      match: (p) => p.includes("tab=records") || p.startsWith("/records"),
-    });
-  }
-
-  if (role === "doctor" && has("voice_rx")) {
-    clinicItems.push({
-      href: patientHref("visit"),
-      labelKey: "navVisit",
-      match: (p) => p.includes("tab=visit") || p.startsWith("/visit"),
-    });
-  }
-
-  if (role === "lab" || has("labs")) {
-    clinicItems.push({
-      href: "/labs/",
-      labelKey: "navLabs",
-      match: (p) => p.startsWith("/labs"),
-    });
-  }
 
   clinicItems.push({
     href: "/home/profile/",
@@ -148,7 +103,7 @@ export default function BurgerDrawer({ open, onClose }: Props) {
           </p>
           {clinicItems.map((item) => (
             <DrawerLink
-              active={item.match(pathname + (typeof window !== "undefined" ? window.location.search : ""))}
+              active={item.match(pathname)}
               href={item.href}
               key={`${item.labelKey}-${item.href}`}
               label={t(item.labelKey)}
