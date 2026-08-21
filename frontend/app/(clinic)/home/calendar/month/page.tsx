@@ -11,7 +11,7 @@ export default function CalendarMonthPage() {
   const { items } = useAppointments({ status: "booked" });
 
   return (
-    <HomeShell showFab showNotification title={t("viewMonth")}>
+    <HomeShell showFab title={t("viewMonth")}>
       <MonthViewGrid items={items} month={month} />
     </HomeShell>
   );

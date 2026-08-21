@@ -314,6 +314,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     clinicServerLoopback:
       "This device cannot reach localhost — enter your clinic API address below.",
     moreSignOutHint: "Use Sign out in the header when you finish your shift.",
+    switchClinic: "Switch clinic",
     forwardCaseHistory: "Forward case history",
     forwardCaseHistoryHint:
       "Build one referral PDF from the chart brief, then share externally or hand off to a clinic doctor.",
@@ -676,6 +677,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     clinicServerLoopback:
       "यह डिवाइस localhost तक नहीं पहुँच सकता — नीचे क्लिनिक API पता दर्ज करें।",
     moreSignOutHint: "शिफ्ट समाप्त होने पर हेडर में साइन आउट करें।",
+    switchClinic: "क्लिनिक बदलें",
     forwardCaseHistory: "केस इतिहास अग्रेषित करें",
     forwardCaseHistoryHint:
       "चार्ट सारांश से एक रेफरल PDF बनाएँ, फिर बाहरी डॉक्टर से साझा करें या क्लिनिक डॉक्टर को सौंपें।",

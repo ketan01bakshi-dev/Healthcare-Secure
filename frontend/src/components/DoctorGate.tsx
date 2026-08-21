@@ -328,6 +328,29 @@ export default function DoctorGate({ children }: Props) {
     }
   }, []);
 
+  useEffect(() => {
+    (
+      window as unknown as {
+        __healthcareSignOut?: () => Promise<void>;
+        __healthcareSwitchClinic?: () => Promise<void>;
+      }
+    ).__healthcareSignOut = onLock;
+    (
+      window as unknown as {
+        __healthcareSignOut?: () => Promise<void>;
+        __healthcareSwitchClinic?: () => Promise<void>;
+      }
+    ).__healthcareSwitchClinic = onSwitchClinic;
+    return () => {
+      delete (
+        window as unknown as { __healthcareSignOut?: () => Promise<void> }
+      ).__healthcareSignOut;
+      delete (
+        window as unknown as { __healthcareSwitchClinic?: () => Promise<void> }
+      ).__healthcareSwitchClinic;
+    };
+  }, [onLock, onSwitchClinic]);
+
   const resetForgotFlow = useCallback(() => {
     setForgotStep(null);
     setForgotClinicName("");

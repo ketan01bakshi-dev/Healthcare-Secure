@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 
 import OverlayBackdrop from "@/components/overlays/OverlayBackdrop";
 import { useActiveClinicRole, useClinicFeatures } from "@/components/DoctorGate";
+import { usePatient } from "@/context/PatientContext";
+import {
+  patientCardPath,
+  type PatientCardTab,
+} from "@/lib/clinicRoutes";
 import { useI18n } from "@/lib/i18n";
 
 type Props = {
@@ -12,20 +17,88 @@ type Props = {
   onClose: () => void;
 };
 
+type DrawerItem = {
+  href: string;
+  labelKey: string;
+  match: (path: string) => boolean;
+};
+
 export default function BurgerDrawer({ open, onClose }: Props) {
   const { t } = useI18n();
   const role = useActiveClinicRole();
   const { has } = useClinicFeatures();
   const pathname = usePathname() || "";
+  const { locked, blindPatientId } = usePatient();
 
   if (!open) return null;
 
   const onCalendar = pathname.startsWith("/home/calendar");
 
+  function patientHref(tab: PatientCardTab): string {
+    if (locked && blindPatientId) {
+      return patientCardPath(blindPatientId, tab);
+    }
+    return "/home/patients/";
+  }
+
+  const clinicItems: DrawerItem[] = [];
+
+  if (role !== "lab") {
+    clinicItems.push({
+      href: "/home/calendar/",
+      labelKey: "navCalendar",
+      match: (p) => p.startsWith("/home/calendar"),
+    });
+  }
+
+  clinicItems.push({
+    href: "/home/patients/",
+    labelKey: "navPatients",
+    match: (p) =>
+      p.startsWith("/home/patients") || p.startsWith("/home/patient"),
+  });
+
+  if (role === "doctor" || role === "staff") {
+    clinicItems.push({
+      href: patientHref("vitals"),
+      labelKey: "navPatient",
+      match: (p) =>
+        p.includes("tab=vitals") ||
+        (p.startsWith("/patient") && !p.startsWith("/home/patient")),
+    });
+    clinicItems.push({
+      href: patientHref("records"),
+      labelKey: "navRecords",
+      match: (p) => p.includes("tab=records") || p.startsWith("/records"),
+    });
+  }
+
+  if (role === "doctor" && has("voice_rx")) {
+    clinicItems.push({
+      href: patientHref("visit"),
+      labelKey: "navVisit",
+      match: (p) => p.includes("tab=visit") || p.startsWith("/visit"),
+    });
+  }
+
+  if (role === "lab" || has("labs")) {
+    clinicItems.push({
+      href: "/labs/",
+      labelKey: "navLabs",
+      match: (p) => p.startsWith("/labs"),
+    });
+  }
+
+  clinicItems.push({
+    href: "/home/profile/",
+    labelKey: "navProfile",
+    match: (p) => p.startsWith("/home/profile"),
+  });
+
   return (
     <>
       <OverlayBackdrop onDismiss={onClose} />
-      <aside className="fixed left-0 top-0 z-50 flex h-full w-[min(18rem,85vw)] flex-col border-r border-slate-200 bg-white pt-[max(1rem,env(safe-area-inset-top))] shadow-xl dark:border-slate-700 dark:bg-slate-900">
+      <aside className="fixed right-0 top-0 z-50 flex h-full w-[min(18rem,85vw)] flex-col border-l border-slate-200 bg-white pt-[max(1rem,env(safe-area-inset-top))] shadow-xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b border-slate-100 px-4 pb-3 dark:border-slate-800">
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Menu
@@ -47,7 +120,10 @@ export default function BurgerDrawer({ open, onClose }: Props) {
                 {t("calendarView")}
               </p>
               <DrawerLink
-                active={pathname === "/home/calendar/" || pathname === "/home/calendar"}
+                active={
+                  pathname === "/home/calendar/" ||
+                  pathname === "/home/calendar"
+                }
                 href="/home/calendar/"
                 label={t("viewSchedule")}
                 onNavigate={onClose}
@@ -70,20 +146,15 @@ export default function BurgerDrawer({ open, onClose }: Props) {
           <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
             {t("clinicTools")}
           </p>
-          {role === "lab" || has("labs") ? (
+          {clinicItems.map((item) => (
             <DrawerLink
-              active={pathname.startsWith("/labs")}
-              href="/labs/"
-              label={t("navLabs")}
+              active={item.match(pathname + (typeof window !== "undefined" ? window.location.search : ""))}
+              href={item.href}
+              key={`${item.labelKey}-${item.href}`}
+              label={t(item.labelKey)}
               onNavigate={onClose}
             />
-          ) : null}
-          <DrawerLink
-            active={pathname.startsWith("/home/profile")}
-            href="/home/profile/"
-            label={t("navProfile")}
-            onNavigate={onClose}
-          />
+          ))}
         </nav>
       </aside>
     </>

@@ -62,7 +62,20 @@ export default function NewPatientPage() {
 
   return (
     <div className="pb-8">
-      <AppHeader onMenuClick={() => router.back()} title={t("createPatient")} />
+      <AppHeader
+        leading={
+          <button
+            aria-label="Back"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700"
+            onClick={() => router.back()}
+            type="button"
+          >
+            ←
+          </button>
+        }
+        onMenuClick={() => router.back()}
+        title={t("createPatient")}
+      />
       <form className="mt-4 space-y-4" onSubmit={onSave}>
         <label className="block text-xs font-medium text-slate-600">
           {t("name")}

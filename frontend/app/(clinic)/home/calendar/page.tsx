@@ -22,7 +22,7 @@ export default function CalendarSchedulePage() {
     });
 
   return (
-    <HomeShell showFab showNotification title={monthTitle}>
+    <HomeShell showFab title={monthTitle}>
       <OfflineSyncBanner />
       <ScheduleViewList groups={groups} loading={loading} />
       {!loading && groups.length === 0 ? (

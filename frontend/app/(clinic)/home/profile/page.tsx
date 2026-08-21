@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [apiUrl, setApiUrl] = useState("");
   const [native, setNative] = useState(false);
   const [haptics, setHaptics] = useState(true);
+  const [busy, setBusy] = useState(false);
   const user = getClinicUser();
   const gate = getClinicGate();
 
@@ -31,8 +32,32 @@ export default function ProfilePage() {
     setHaptics(hapticsEnabled());
   }, []);
 
+  async function onSwitchClinic() {
+    setBusy(true);
+    try {
+      await (
+        window as unknown as {
+          __healthcareSwitchClinic?: () => Promise<void>;
+        }
+      ).__healthcareSwitchClinic?.();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSignOut() {
+    setBusy(true);
+    try {
+      await (
+        window as unknown as { __healthcareSignOut?: () => Promise<void> }
+      ).__healthcareSignOut?.();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <HomeShell showFab={false} showNotification title={t("navProfile")}>
+    <HomeShell showFab={false} title={t("navProfile")}>
       <div className="space-y-6">
         <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
           <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -90,8 +115,26 @@ export default function ProfilePage() {
           UI build: {APP_BUILD_ID}
           {native ? " · native app" : " · browser"}
         </p>
-        <p className="text-xs text-slate-500">{t("moreSignOutHint")}</p>
         {has("analytics") ? <ClinicAnalytics /> : null}
+
+        <section className="space-y-2 pb-4">
+          <button
+            className="flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-200 text-sm font-medium text-slate-800 disabled:opacity-50 dark:border-slate-600 dark:text-slate-100"
+            disabled={busy}
+            onClick={() => void onSwitchClinic()}
+            type="button"
+          >
+            {t("switchClinic")}
+          </button>
+          <button
+            className="flex min-h-12 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-medium text-white disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
+            disabled={busy}
+            onClick={() => void onSignOut()}
+            type="button"
+          >
+            {t("signOut")}
+          </button>
+        </section>
       </div>
     </HomeShell>
   );

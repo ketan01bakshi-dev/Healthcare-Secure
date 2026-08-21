@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useActiveClinicRole } from "@/components/DoctorGate";
 import AppHeader from "@/components/home/AppHeader";
+import BurgerDrawer from "@/components/home/BurgerDrawer";
 import type { AppointmentRow } from "@/lib/appointmentGroups";
 import { formatIst, formatIstTime } from "@/lib/datetimeIst";
 import { pathAfterPatientLock } from "@/lib/clinicRoutes";
@@ -24,6 +25,7 @@ export default function AppointmentEventPage() {
   const [item, setItem] = useState<AppointmentRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -76,7 +78,17 @@ export default function AppointmentEventPage() {
   return (
     <div className="pb-8">
       <AppHeader
-        onMenuClick={() => router.back()}
+        leading={
+          <button
+            aria-label="Back"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700"
+            onClick={() => router.back()}
+            type="button"
+          >
+            ←
+          </button>
+        }
+        onMenuClick={() => setMenuOpen(true)}
         title={t("appointmentDetails")}
       />
       <div className="mt-4 flex gap-4">
@@ -130,6 +142,7 @@ export default function AppointmentEventPage() {
           {status}
         </p>
       ) : null}
+      <BurgerDrawer onClose={() => setMenuOpen(false)} open={menuOpen} />
     </div>
   );
 }

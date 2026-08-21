@@ -8,32 +8,28 @@ import BurgerDrawer from "@/components/home/BurgerDrawer";
 import CreateActionSheet from "@/components/home/CreateActionSheet";
 import FabButton from "@/components/home/FabButton";
 import HomeTabNav from "@/components/home/HomeTabNav";
-import NotificationFab from "@/components/home/NotificationFab";
-import NotificationSheet from "@/components/home/NotificationSheet";
+import NotificationToast from "@/components/home/NotificationToast";
 import { useActiveClinicRole } from "@/components/DoctorGate";
 import { useSwipeTabs } from "@/hooks/useSwipeTabs";
-import { activeHomeTabHref, homeTabHrefsForRole } from "@/lib/tabOrder";
 import { lightHaptic } from "@/lib/haptics";
+import { activeHomeTabHref, homeTabHrefsForRole } from "@/lib/tabOrder";
 
 type Props = {
   children: ReactNode;
   title?: string;
   showFab?: boolean;
-  showNotification?: boolean;
 };
 
 export default function HomeShell({
   children,
   title = "",
   showFab = true,
-  showNotification = true,
 }: Props) {
   const pathname = usePathname() || "";
   const router = useRouter();
   const role = useActiveClinicRole();
   const [menuOpen, setMenuOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
 
   const hideChrome =
     pathname.startsWith("/home/calendar/new") ||
@@ -63,8 +59,7 @@ export default function HomeShell({
     onChange: onSwipeTab,
   });
 
-  const fabBottom = "bottom-[7.5rem]";
-  const notifBottom = "bottom-[4.5rem]";
+  const fabBottom = "bottom-[5.5rem]";
 
   return (
     <div className="pb-28" {...(hideChrome ? {} : swipe)}>
@@ -81,16 +76,12 @@ export default function HomeShell({
           onClick={() => setCreateOpen(true)}
         />
       ) : null}
-      {!hideChrome && showNotification ? (
-        <NotificationFab
-          className={notifBottom}
-          onClick={() => setNotifOpen(true)}
-        />
+      {!hideChrome ? (
+        <NotificationToast className="bottom-[4.5rem]" />
       ) : null}
       {!hideChrome ? <HomeTabNav /> : null}
       <BurgerDrawer onClose={() => setMenuOpen(false)} open={menuOpen} />
       <CreateActionSheet onClose={() => setCreateOpen(false)} open={createOpen} />
-      <NotificationSheet onClose={() => setNotifOpen(false)} open={notifOpen} />
     </div>
   );
 }

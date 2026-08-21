@@ -4,12 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import AppHeader from "@/components/home/AppHeader";
+import BurgerDrawer from "@/components/home/BurgerDrawer";
 import PatientAppointmentTab from "@/components/patient-card/PatientAppointmentTab";
 import PatientCardHeader from "@/components/patient-card/PatientCardHeader";
 import PatientInnerTabs from "@/components/patient-card/PatientInnerTabs";
 import PatientRecordsTab from "@/components/patient-card/PatientRecordsTab";
 import PatientVisitTab from "@/components/patient-card/PatientVisitTab";
 import PatientVitalsTab from "@/components/patient-card/PatientVitalsTab";
+import NotificationToast from "@/components/home/NotificationToast";
 import { useActiveClinicRole, useClinicFeatures } from "@/components/DoctorGate";
 import type { PatientCardTab } from "@/lib/clinicRoutes";
 import { patientCardPath } from "@/lib/clinicRoutes";
@@ -30,6 +32,7 @@ export default function PatientCardPage() {
   const { lockFromDirectory } = usePatient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const visibleTabs = useMemo(
     () => patientTabsForRole(role, has),
@@ -77,10 +80,24 @@ export default function PatientCardPage() {
   if (error) {
     return (
       <div>
-        <AppHeader onMenuClick={() => router.back()} title={t("patient")} />
+        <AppHeader
+          leading={
+            <button
+              aria-label="Back"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700"
+              onClick={() => router.push("/home/patients/")}
+              type="button"
+            >
+              ←
+            </button>
+          }
+          onMenuClick={() => setMenuOpen(true)}
+          title={t("patient")}
+        />
         <p className="text-sm text-red-600" role="alert">
           {error}
         </p>
+        <BurgerDrawer onClose={() => setMenuOpen(false)} open={menuOpen} />
       </div>
     );
   }
@@ -110,12 +127,24 @@ export default function PatientCardPage() {
   return (
     <div className="pb-8" {...swipe}>
       <AppHeader
-        onMenuClick={() => router.push("/home/patients/")}
+        leading={
+          <button
+            aria-label="Back"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-200"
+            onClick={() => router.push("/home/patients/")}
+            type="button"
+          >
+            ←
+          </button>
+        }
+        onMenuClick={() => setMenuOpen(true)}
         title={t("patient")}
       />
       <PatientCardHeader />
       <PatientInnerTabs blindPatientId={patientId} />
       {renderTab()}
+      <NotificationToast className="bottom-6" />
+      <BurgerDrawer onClose={() => setMenuOpen(false)} open={menuOpen} />
     </div>
   );
 }

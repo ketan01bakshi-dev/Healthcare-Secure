@@ -21,7 +21,7 @@ export default function CalendarDayPage() {
   const { items, loading } = useAppointments({ status: "booked" });
 
   return (
-    <HomeShell showFab showNotification title={t("viewDay")}>
+    <HomeShell showFab title={t("viewDay")}>
       <DayViewTimeline date={date} items={items} loading={loading} />
     </HomeShell>
   );
