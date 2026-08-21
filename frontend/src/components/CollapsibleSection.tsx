@@ -26,12 +26,12 @@ const SHELL_COLLAPSED =
   "rounded-xl border border-slate-200 bg-slate-100 px-4 py-4";
 
 const TITLE: Record<Variant, string> = {
-  light: "text-sm font-semibold uppercase tracking-wide text-slate-500",
-  dark: "text-sm font-semibold uppercase tracking-wide text-clinical-100/70",
+  light: "text-sm font-semibold tracking-wide text-slate-700",
+  dark: "text-sm font-semibold tracking-wide text-clinical-100/90",
 };
 
 const TITLE_COLLAPSED =
-  "text-sm font-semibold uppercase tracking-wide text-slate-500";
+  "text-sm font-semibold tracking-wide text-slate-700";
 
 const HINT: Record<Variant, string> = {
   light: "text-sm text-slate-600",

@@ -71,7 +71,7 @@ export default function DocumentUpload({ onUploaded, labOnly = false }: Props) {
           ? "Upload diagnostic lab reports for this patient. The doctor can open them later."
           : "Attach prior prescriptions or lab/scan reports for this patient."
       }
-      title={labOnly ? "Lab reports" : "Scanned reports"}
+      title={labOnly ? "Lab Reports" : "Scanned Reports"}
       variant="dark"
     >
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>

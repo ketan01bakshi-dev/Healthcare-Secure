@@ -191,7 +191,7 @@ export default function VitalsForm() {
     <CollapsibleSection
       aria-label="Vitals and diagnostics"
       hint="Blood pressure, pulse, and other readings for this visit."
-      title="Vitals & notes"
+      title="Vitals & Notes"
     >
       <form className="grid gap-3 sm:grid-cols-2" onSubmit={onSubmit}>
         <label className="block text-xs uppercase tracking-wide text-slate-500 sm:col-span-2">

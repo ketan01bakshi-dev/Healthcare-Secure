@@ -61,7 +61,7 @@ export default function PatientInnerTabs({
   return (
     <nav
       aria-label={t("patientTabs")}
-      className="sticky top-0 z-10 -mx-4 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-950"
+      className="sticky top-[3.75rem] z-10 -mx-4 mb-3 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-700 dark:bg-slate-950/95"
     >
       {visible.map((item) => {
         const active = activeTab === item.tab;

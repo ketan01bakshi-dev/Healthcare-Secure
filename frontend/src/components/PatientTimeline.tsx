@@ -231,7 +231,7 @@ export default function PatientTimeline() {
       aria-label="Patient visit timeline"
       className="mx-auto w-full max-w-3xl rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-8 shadow-lg backdrop-blur-sm sm:px-8"
       hint="Past visits, prescriptions, and reports for this patient."
-      title="Patient timeline"
+      title="Patient Timeline"
       variant="dark"
     >
       {!locked ? (

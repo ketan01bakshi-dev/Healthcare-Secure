@@ -267,7 +267,7 @@ export default function PrescriptionShare({
     <CollapsibleSection
       aria-label="Share prescription"
       hint="Print for the counter first, then share by SMS if needed."
-      title="Prescription ready"
+      title="Prescription Ready"
       variant="dark"
     >
       {actions}

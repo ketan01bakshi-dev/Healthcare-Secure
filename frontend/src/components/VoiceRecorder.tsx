@@ -631,7 +631,7 @@ export default function VoiceRecorder({
       aria-label="Prescription voice recorder"
       className="mx-auto w-full max-w-md overflow-x-hidden rounded-2xl border border-clinical-100/15 bg-clinical-900/40 px-4 py-6 shadow-lg backdrop-blur-sm sm:px-6 sm:py-8"
       hint="Tap Record, speak clearly, then tap Stop."
-      title="Voice prescription"
+      title="Voice Prescription"
       variant="dark"
     >
       {body}

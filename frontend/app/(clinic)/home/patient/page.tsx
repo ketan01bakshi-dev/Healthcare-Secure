@@ -122,8 +122,8 @@ export default function PatientCardPage() {
   return (
     <div className="pb-8" {...swipe}>
       <AppHeader leading={backButton} showMenu={false} title={t("patient")} />
-      <PatientCardHeader />
       <PatientInnerTabs blindPatientId={patientId} />
+      <PatientCardHeader />
       {renderTab()}
       <NotificationToast className="bottom-6" />
     </div>

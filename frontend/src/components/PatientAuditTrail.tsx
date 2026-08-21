@@ -125,7 +125,7 @@ export default function PatientAuditTrail() {
     <CollapsibleSection
       aria-label="Activity log"
       hint="Who changed what for this patient (vitals, reports, prescriptions, mobile updates)."
-      title="Activity log"
+      title="Activity Log"
     >
       {status === "loading" ? (
         <p className="text-sm text-slate-500">Loading…</p>

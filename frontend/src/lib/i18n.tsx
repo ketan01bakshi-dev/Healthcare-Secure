@@ -62,14 +62,14 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     addToGoogleCalendar: "Google Calendar",
     downloadIcs: "Download .ics",
     markDoneFailed: "Could not mark done.",
-    obstetricProfile: "Obstetric profile",
+    obstetricProfile: "Obstetric Profile",
     obstetricHint:
       "LMP, EDD, G/P/A/L and blood group for antenatal care. EDD auto-fills from LMP (Naegele).",
     saveObstetric: "Save obstetric profile",
     obstetricSaved: "Obstetric profile saved.",
     obstetricSaveFailed: "Could not save obstetric profile.",
     gestationalAge: "Gestational age",
-    healthProfile: "Ongoing medication & health issues",
+    healthProfile: "Ongoing Medication & Health Issues",
     healthProfileHint:
       "Long-term medicines and known conditions for this patient. Updates overwrite the previous card.",
     ongoingMedications: "Ongoing medications",
@@ -93,7 +93,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     bookedOpenSms:
       "Booked — opening SMS on this phone. Tap Send to confirm to the patient.",
     bookedSmsStatus: "Booked — SMS",
-    labResults: "Lab results",
+    labResults: "Lab Results",
     saveLab: "Save lab result",
     printRx: "Print prescription",
     prescriptionSection: "Prescription",
@@ -180,7 +180,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     sttGlossaryTerms: "Glossary terms",
     sttTopCorrections: "Top doctor corrections",
     sttNoCorrectionsYet: "No med-name corrections mined yet — sign voice Rx after review.",
-    vitalsTrend: "Vitals trend",
+    vitalsTrend: "Vitals Trend",
     lockForVitalsTrend:
       "Lock a patient to see weight, BP, and hemoglobin trends over visits.",
     noVitalsYet: "No vitals entries yet.",
@@ -198,7 +198,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     bookAppointment: "Book + SMS",
     bookAsVideoConsult: "Book as video consult",
     videoBadge: "Video",
-    videoConsult: "Video consult",
+    videoConsult: "Video Consult",
     videoConsultHint:
       "Start a Jitsi room, SMS the join link to the patient, then write the Rx below. Calls are not recorded on this server.",
     videoMicConflictHint:
@@ -268,6 +268,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     save: "Save",
     appointmentDetails: "Appointment details",
     details: "Details",
+    patientDetails: "Patient Details",
     tabAppointment: "Appointment",
     tabVitals: "Vitals",
     tabRecords: "Records",
@@ -295,7 +296,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
       "Select a patient, then open Labs to enter results or upload PDFs.",
     labDeskHint:
       "Lab desk: enter structured results or upload report PDFs for the locked patient.",
-    recommendedDiagnostics: "Recommended diagnostics",
+    recommendedDiagnostics: "Recommended Diagnostics",
     recommendedDiagnosticsHint:
       "Tick tests to order; they appear on the prescription and Labs tab.",
     recommendedDiagnosticsHelp:
@@ -315,7 +316,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
       "This device cannot reach localhost — enter your clinic API address below.",
     moreSignOutHint: "Use Sign out in the header when you finish your shift.",
     switchClinic: "Switch clinic",
-    forwardCaseHistory: "Forward case history",
+    forwardCaseHistory: "Forward Case History",
     forwardCaseHistoryHint:
       "Build one referral PDF from the chart brief, then share externally or hand off to a clinic doctor.",
     forwardNote: "Referral / handoff note",
@@ -344,11 +345,11 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     referralFrom: "From",
     referralInboxEmpty: "No open handoffs.",
     referralOpenFailed: "Could not open patient from handoff.",
-    caseBrief: "Case brief",
+    caseBrief: "Case Brief",
     caseBriefHint:
       "Decision support only — verify against chart and clinical judgment.",
     caseBriefFailed: "Could not load case brief.",
-    consultPack: "Today’s consult pack",
+    consultPack: "Today’s Consult Pack",
     consultPackLoading: "Building pack…",
     consultPackFailed: "Could not build consult pack.",
     latestVitals: "Latest vitals",
@@ -631,6 +632,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     save: "सेव",
     appointmentDetails: "अपॉइंटमेंट विवरण",
     details: "विवरण",
+    patientDetails: "मरीज़ विवरण",
     tabAppointment: "अपॉइंटमेंट",
     tabVitals: "वाइटल्स",
     tabRecords: "रिकॉर्ड",

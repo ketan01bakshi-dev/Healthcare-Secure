@@ -14,7 +14,7 @@ export default function PatientAppointmentTab() {
 
   return (
     <div className="space-y-6 pt-4">
-      <PatientBar title={t("details")} />
+      <PatientBar title={t("patientDetails")} />
       <AppointmentScheduler />
       {showBilling ? <PatientBilling /> : null}
     </div>
