@@ -251,6 +251,40 @@ def parse_prescription(
             detail=str(exc),
         ) from exc
     except Exception as exc:  # noqa: BLE001
+        # #region agent log
+        try:
+            import json
+            import time
+            from app.services.lml_parser import _provider, _resolve_model
+
+            _payload = json.dumps(
+                {
+                    "sessionId": "bda137",
+                    "hypothesisId": "A",
+                    "location": "prescription.py:parse",
+                    "message": "clinical_parse_failed",
+                    "data": {
+                        "provider": _provider(),
+                        "model": _resolve_model(),
+                        "error": str(exc)[:240],
+                    },
+                    "timestamp": int(time.time() * 1000),
+                }
+            ) + "\n"
+            for _p in (
+                r"D:\Agents\Healthcare\debug-bda137.log",
+                "/tmp/debug-bda137.log",
+                "/root/Healthcare-Secure/debug-bda137.log",
+            ):
+                try:
+                    with open(_p, "a", encoding="utf-8") as _f:
+                        _f.write(_payload)
+                    break
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        # #endregion
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Clinical parse failed: {exc}",

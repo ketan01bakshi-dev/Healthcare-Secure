@@ -125,7 +125,7 @@ WHISPER_API_KEY=your_key_here
 WHISPER_MODEL=whisper-large-v3-turbo
 WHISPER_PRELOAD=false
 LLM_PROVIDER=groq
-LLM_MODEL=llama-3.1-8b-instant
+LLM_MODEL=openai/gpt-oss-20b
 LLM_API_KEY=your_key_here
 ```
 
