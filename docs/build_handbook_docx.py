@@ -120,16 +120,16 @@ def build() -> Path:
         "From first scaffold to current clinic app — architecture, Android/Capacitor, "
         "analytics, ABDM/SMS/multi-tenant, gynae decision support, cloud Hostinger ops, "
         "patient billing / Razorpay UPI QR, video consult, browser desk (app.*), "
-        "Today-only patient pick, persisted lab orders, stale-APK + CORS RCA, secrets, VPS deploy"
+        "Today-only patient pick, persisted lab orders, stale-APK + CORS RCA, "
+        "lab clinical-search RBAC, persisted clinic gate tickets, marketing assets, secrets, VPS deploy"
     )
     set_run_font(r, size=12)
     meta = doc.add_paragraph()
     meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r = meta.add_run(
         "Application version baseline: 0.1.0 (+ Unreleased features documented herein)\n"
-        "Document edition: 15 August 2026 (includes Era O: Today-only pick, doctor→Visit after lock, "
-        "persisted lab orders, 15s chart poll, browser desk at app.*, CORS Failed-to-fetch RCA, "
-        "Lab Desk 403 lock RCA; share APK v1.48)\n"
+        "Document edition: 23 August 2026 (includes Era P: lab clinical-search RBAC, "
+        "persisted clinic gate tickets, Android hardening, marketing & DPA assets; share APK v1.60)\n"
         "Audience: students learning Android (Capacitor), FastAPI, and clinic workflows\n\n"
         "SECURITY NOTICE: This document never contains real SECRET_KEY, SECRET_SALT, "
         "PINs, API keys, Razorpay secrets, or production passwords. Use placeholders only."
@@ -549,6 +549,21 @@ def build() -> Path:
             "Doctor APK: after PIN land on Patient Info; lock from All patients → Visit. Tick a diagnostic on Visit; "
             "Lab Desk on another device sees it under Ordered from Visit within ~15s.",
         ),
+        (
+            "Era P — Lab RBAC, persisted tickets, hardening & marketing (23 Aug 2026)",
+            "Harden production security, fix lab desk scoping, and ship B2B marketing assets.",
+            [
+                "Lab clinical-search RBAC: filter by entered_by.user_id (lab sees only own uploads)",
+                "Persisted clinic gate tickets: ClinicGateTicket model + Postgres-backed 8h TTL",
+                "Nginx hardening: Strict-Transport-Security (HSTS) on all HTTPS vhosts",
+                "Android hardening: android:allowBackup=\"false\" + release network security config",
+                "Marketing assets: Pricing page, DPA template, One-page pitch (EN/HI), README",
+                "Share APK v1.60 (versionCode 61) — assembleRelease build with hardening",
+            ],
+            "Prepares the product for professional B2B rollout and Play Store standards.",
+            "Lab search for foreign med → no result; restart API → clinic ticket still valid; "
+            "curl -I https://api… shows HSTS header; adb install v1.60 on physical device.",
+        ),
     ]
 
     for title, goal, steps, significance, verify in milestones:
@@ -584,10 +599,13 @@ def build() -> Path:
             ["Patient billing ledger", "Implemented (charges/payments + summary on Patient Info)"],
             ["Razorpay UPI QR", "Implemented (env keys + webhook; mock for local; live keys per clinic ops)"],
             ["Hostinger multi-clinic cloud", "Live runbook; dual-stack DNS + nginx restart after API recreate"],
-            ["Share HTTPS APK", "scripts/build_share_apk.cmd; More shows UI build stamp (v1.48 as of 14 Aug 2026)"],
+            ["Share HTTPS APK", "scripts/build_share_apk.cmd; More shows UI build stamp (v1.60 as of 23 Aug 2026)"],
             ["Browser clinic desk", "Live at https://app.aarogyaoneconnect.in (same UI; CORS + TLS SAN)"],
             ["Today-only patient pick", "Implemented (All patients / waiting list; no Vitals Select form)"],
             ["Persisted lab orders", "Implemented (lab_orders_json + /history/lab-orders; 15s poll)"],
+            ["Persisted clinic tickets", "Implemented (Postgres-backed; survives API restart; 8h TTL)"],
+            ["Lab clinical search RBAC", "Implemented (scoped to own uploads only)"],
+            ["Marketing & B2B assets", "Implemented (Pricing, DPA, Pitch deck)"],
             ["Play Store listing", "AAB docs + PRIVACY_POLICY.md stub"],
             ["iOS Capacitor project", "Scripts exist; frontend/ios/ not checked in yet"],
             ["Git remote push of Unreleased work", "May still need auth/commit hygiene"],
@@ -1211,6 +1229,9 @@ def build() -> Path:
             ["Browser desk", "https://app.aarogyaoneconnect.in — static clinic UI for PC/browser (esp. front desk/staff)"],
             ["lab orders", "Visit recommended-diagnostics ticks persisted on the patient for Lab Desk"],
             ["pathAfterPatientLock", "Role-based route after locking from All patients or waiting list"],
+            ["HSTS", "Strict-Transport-Security header — enforces HTTPS browser sessions"],
+            ["DPA", "Data Processing Agreement — legal contract for clinic data fiduciaries"],
+            ["Marketing Pitch", "Side-by-side English/Hindi 1-pager for B2B clinic sales"],
         ],
     )
 

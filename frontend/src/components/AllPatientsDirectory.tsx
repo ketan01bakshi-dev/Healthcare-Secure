@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import CollapsibleSection from "@/components/CollapsibleSection";
+import ThemedSelect from "@/components/ThemedSelect";
 import { useActiveClinicRole } from "@/components/DoctorGate";
 import { usePatient } from "@/context/PatientContext";
 import { pathAfterPatientLock } from "@/lib/clinicRoutes";
@@ -125,15 +126,16 @@ export default function AllPatientsDirectory() {
         </label>
         <label className="block text-xs font-medium text-slate-600 sm:w-44">
           {t("filterPeriod")}
-          <select
-            className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-            onChange={(e) => setPeriod(e.target.value as PeriodFilter)}
+          <ThemedSelect
+            aria-label={t("filterPeriod")}
+            onChange={(v) => setPeriod(v as PeriodFilter)}
+            options={[
+              { value: "all", label: t("periodAll") },
+              { value: "week", label: t("periodWeek") },
+              { value: "month", label: t("periodMonth") },
+            ]}
             value={period}
-          >
-            <option value="all">{t("periodAll")}</option>
-            <option value="week">{t("periodWeek")}</option>
-            <option value="month">{t("periodMonth")}</option>
-          </select>
+          />
         </label>
       </div>
 

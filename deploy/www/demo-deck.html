@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Client Demo Presentation Deck — Aarogya One Connect</title>
+    <style>
+      @page {
+        size: 16in 9in;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: #0f172a;
+        color: #0f172a;
+        overflow: hidden;
+      }
+      .deck-container {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      .slide {
+        display: none;
+        width: 100vw;
+        height: 100vh;
+        padding: 2.5rem 3.5rem;
+        background: #f8fafc;
+        box-sizing: border-box;
+        position: relative;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .slide.active {
+        display: flex;
+      }
+      .slide-dark {
+        background: #1e524e;
+        color: #ffffff;
+      }
+      header.slide-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #cbd5e1;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1.5rem;
+      }
+      .slide-dark header.slide-header {
+        border-bottom-color: rgba(255, 255, 255, 0.2);
+      }
+      .brand-tag {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #2a6f6a;
+      }
+      .slide-dark .brand-tag {
+        color: #38bdf8;
+      }
+      h2.slide-title {
+        font-size: 1.75rem;
+        margin: 0.25rem 0 0;
+        color: #1e524e;
+        font-weight: 700;
+      }
+      .slide-dark h2.slide-title {
+        color: #ffffff;
+      }
+      .slide-body {
+        flex: 1;
+        display: flex;
+        gap: 1.5rem;
+        align-items: stretch;
+      }
+      .card-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        width: 100%;
+      }
+      .card-grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1.25rem;
+        width: 100%;
+      }
+      .card-grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        width: 100%;
+      }
+      .card {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+      }
+      .card-highlight {
+        border-color: #0d9488;
+        background: #f0fdfa;
+        box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.1);
+      }
+      .card h3 {
+        font-size: 1.2rem;
+        color: #1e524e;
+        margin: 0 0 0.75rem;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 0.4rem;
+      }
+      .card ul {
+        margin: 0;
+        padding-left: 1.2rem;
+        color: #334155;
+        font-size: 1.05rem;
+        line-height: 1.5;
+      }
+      .card li {
+        margin-bottom: 0.6rem;
+      }
+      .title-hero {
+        text-align: center;
+        margin: auto 0;
+      }
+      .title-hero h1 {
+        font-size: 3.5rem;
+        margin: 0 0 1rem;
+        color: #ffffff;
+        font-family: Georgia, serif;
+      }
+      .title-hero p.sub {
+        font-size: 1.75rem;
+        color: #cbd5e1;
+        margin: 0 0 2rem;
+      }
+      .title-hero .tags {
+        display: inline-flex;
+        gap: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.75rem 1.5rem;
+        border-radius: 50px;
+        color: #38bdf8;
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+      footer.slide-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 0.75rem;
+        margin-top: 1rem;
+        font-size: 0.85rem;
+        color: #64748b;
+      }
+      .slide-dark footer.slide-footer {
+        border-top-color: rgba(255, 255, 255, 0.2);
+        color: #cbd5e1;
+      }
+      /* Nav Bar */
+      .nav-bar {
+        position: fixed;
+        bottom: 15px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px);
+        padding: 6px 14px;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        font-size: 0.85rem;
+      }
+      .nav-btn {
+        background: #2a6f6a;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+      }
+      .nav-btn:hover {
+        background: #1e524e;
+      }
+      @media print {
+        body {
+          overflow: visible;
+          background: white;
+        }
+        .slide {
+          display: flex !important;
+          page-break-after: always;
+          width: 100vw;
+          height: 100vh;
+        }
+        .nav-bar {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="deck-container">
+      <!-- SLIDE 1 -->
+      <section class="slide slide-dark active" id="slide-1">
+        <header class="slide-header">
+          <span class="brand-tag">Aarogya One Connect · Client Demo Deck</span>
+          <span>Aug 2026</span>
+        </header>
+        <div class="title-hero">
+          <h1>Aarogya One Connect</h1>
+          <p class="sub">The Professional Outpatient (OPD) Operating System</p>
+          <div class="tags">
+            <span>Voice-to-Rx Engine</span> ·
+            <span>4-Role Desks</span> ·
+            <span>UPI QR Billing</span> ·
+            <span>Gynae & GP Workflows</span>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>www.aarogyaoneconnect.in</span>
+          <span>sales@aarogyaoneconnect.in · +91 75660 99983</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 2 -->
+      <section class="slide" id="slide-2">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">Problem Statement</span>
+            <h2 class="slide-title">The Modern OPD Challenge — Lost Time & Revenue</h2>
+          </div>
+          <span>02 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-2">
+            <div class="card">
+              <h3>Documentation & Handwriting Friction</h3>
+              <ul>
+                <li><strong>15–20 Minutes Lost Daily:</strong> Doctors spend excessive consultation time typing or writing prescription notes manually.</li>
+                <li><strong>Illegible Rx Errors:</strong> Handwritten notes cause patient confusion, pharmacy misreadings, and follow-up queries.</li>
+                <li><strong>Repetitive Intake:</strong> Doctors re-enter vitals and basic history that nurses or staff already noted down.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Fragmented Operations & Billing Leakage</h3>
+              <ul>
+                <li><strong>Team Silos:</strong> Receptionist, nurse, doctor, and lab operate in isolated compartments without real-time sync.</li>
+                <li><strong>Front-Desk Chasing:</strong> Verifying if a patient paid their fee at reception causes OPD queue delays.</li>
+                <li><strong>Compliance Anxiety:</strong> Traditional patient registers expose searchable phone numbers, risking DPDPA compliance.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 3 -->
+      <section class="slide" id="slide-3">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">Core Solution</span>
+            <h2 class="slide-title">Four Workspaces — Tailored for Every Team Member</h2>
+          </div>
+          <span>03 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-4">
+            <div class="card">
+              <h3>Doctor Desk</h3>
+              <ul>
+                <li>Voice-to-Rx dictation</li>
+                <li>Case history brief</li>
+                <li>Vitals trend graphs</li>
+                <li>Video consult option</li>
+                <li>Referral handoff inbox</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Staff / Nurse Desk</h3>
+              <ul>
+                <li>Intake vitals entry</li>
+                <li>Symptom recording</li>
+                <li>Pediatric indicators</li>
+                <li>History log entry</li>
+                <li>Offline queue support</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Reception Desk</h3>
+              <ul>
+                <li>Patient locking & MRN</li>
+                <li>Live waiting queue</li>
+                <li>Razorpay UPI QR</li>
+                <li>Appointment desk</li>
+                <li>Billing summary</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Lab Desk</h3>
+              <ul>
+                <li>Order visibility</li>
+                <li>Report uploads</li>
+                <li>Structured results</li>
+                <li>HL7 v2 ORU ingest</li>
+                <li>Today's lab queue</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 4 -->
+      <section class="slide" id="slide-4">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">AI Prescription Dictation</span>
+            <h2 class="slide-title">Voice-to-Rx Engine — Dictate Naturally, Sign in Seconds</h2>
+          </div>
+          <span>04 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-3">
+            <div class="card">
+              <h3>1. Speak Naturally</h3>
+              <ul>
+                <li>Dictate in English, Hindi, or auto-detected mixed speech.</li>
+                <li>Powered by local/cloud AI speech transcription.</li>
+                <li>Audio processed in-memory (never saved to disk).</li>
+              </ul>
+            </div>
+            <div class="card card-highlight">
+              <h3>2. AI Scribe Structure</h3>
+              <ul>
+                <li>LLM automatically parses symptoms, diagnosis, medications, and advice.</li>
+                <li>Learns clinic-specific vocabulary and brand medicines.</li>
+                <li>Auto-triggers clinical safety & ANC alert hints.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>3. Signed PDF Rx</h3>
+              <ul>
+                <li>Instant on-screen review and 1-click digital signature.</li>
+                <li>Generates a clean, professional PDF prescription.</li>
+                <li><strong>Reclaims 15–20 minutes every single day!</strong></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 5 -->
+      <section class="slide" id="slide-5">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">Clinical Specialization</span>
+            <h2 class="slide-title">Built-In Clinical Depth — Gynecologist & Polyclinic Ready</h2>
+          </div>
+          <span>05 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-2">
+            <div class="card">
+              <h3>Obstetric & ANC Workflows</h3>
+              <ul>
+                <li><strong>Obstetric Profile:</strong> Record LMP, EDD (Naegele's rule), GPLA, blood group, and Rh factor.</li>
+                <li><strong>Gestational Age Tracking:</strong> Real-time gestational age calculated on patient chip.</li>
+                <li><strong>Pregnancy-Aware Vitals:</strong> Trend charts automatically format x-axis by gestational week.</li>
+                <li><strong>ANC Alerts:</strong> Automated milestone alert triggers and ultrasound scan cadence checklists.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Polyclinic & GP Intelligence</h3>
+              <ul>
+                <li><strong>Clinical Search:</strong> Search patient records across visits by drug, diagnosis, or symptom.</li>
+                <li><strong>Forward Case History:</strong> Handoff complete patient summaries to colleague doctors.</li>
+                <li><strong>Pediatric Indicators:</strong> Automatic age-based normal ranges for pediatric vitals.</li>
+                <li><strong>Bilingual Artifacts:</strong> Produce patient outputs in clean English and Hindi.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 6 -->
+      <section class="slide" id="slide-6">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">Financial Management</span>
+            <h2 class="slide-title">Revenue Integrity — Dynamic UPI QR & Zero Commission</h2>
+          </div>
+          <span>06 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-2">
+            <div class="card">
+              <h3>Dynamic Razorpay UPI QR</h3>
+              <ul>
+                <li>Display dynamic Razorpay UPI QR code directly on the patient visit card at reception.</li>
+                <li>Patients pay via PhonePe, Google Pay, Paytm, or BHIM UPI apps.</li>
+                <li>Webhooks automatically confirm payment in the clinic ledger without manual verification.</li>
+              </ul>
+            </div>
+            <div class="card card-highlight">
+              <h3>100% Revenue Retained</h3>
+              <ul>
+                <li><strong>Zero Booking Commission:</strong> We never charge a fee per appointment or consultation.</li>
+                <li><strong>Zero Marketplace Deductions:</strong> Flat monthly subscription with predictable costs.</li>
+                <li><strong>Itemized Ledger:</strong> Clear breakdowns for consultation, dispensing, and lab services.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 7 -->
+      <section class="slide" id="slide-7">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">Data Security</span>
+            <h2 class="slide-title">Privacy-First Architecture — DPDP 2023 Compliant</h2>
+          </div>
+          <span>07 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-2">
+            <div class="card">
+              <h3>HMAC Blind Patient Identity</h3>
+              <ul>
+                <li>Raw patient phone numbers and names are never stored unhashed on clinical database records.</li>
+                <li>HMAC-SHA256 blind hashing secures patient identity tokens.</li>
+                <li>Encrypted rest-tier storage with PBKDF2 PIN hashing and automatic lockout protection.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Dedicated Indian Cloud Hosting</h3>
+              <ul>
+                <li>Data logically isolated per clinic tenant on secure Mumbai cloud servers.</li>
+                <li>No third-party ad tracking SDKs or external data sharing.</li>
+                <li>Full audit trail tracking every action by staff actor name and role.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 8 -->
+      <section class="slide" id="slide-8">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">Pricing</span>
+            <h2 class="slide-title">Simple, Value-Driven Subscriptions — No Surprise Fees</h2>
+          </div>
+          <span>08 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-3">
+            <div class="card">
+              <h3>Starter (Solo)</h3>
+              <p style="font-size: 1.5rem; font-weight: 700; color: #1e524e; margin: 0 0 0.5rem">₹1,999 <span style="font-size: 0.9rem; font-weight: normal; color: #64748b">/ mo</span></p>
+              <p style="font-size: 0.85rem; color: #64748b; margin-top: 0">Annual: ₹19,990 (2 months free)</p>
+              <ul>
+                <li>1 Doctor + 3 Staff Seats</li>
+                <li>Full Voice-to-Rx Engine</li>
+                <li>Doctor, Staff, Reception, Lab desks</li>
+                <li>Razorpay UPI QR Billing</li>
+                <li>Android App + Browser Desk</li>
+              </ul>
+            </div>
+            <div class="card card-highlight">
+              <h3>Clinic (Polyclinic) ★</h3>
+              <p style="font-size: 1.5rem; font-weight: 700; color: #0d9488; margin: 0 0 0.5rem">₹5,499 <span style="font-size: 0.9rem; font-weight: normal; color: #64748b">/ mo</span></p>
+              <p style="font-size: 0.85rem; color: #64748b; margin-top: 0">Annual: ₹54,990 (2 months free)</p>
+              <ul>
+                <li>Up to 5 Doctors + Unlimited Staff</li>
+                <li>Obstetric & Gynae workflows</li>
+                <li>Clinical Search & Analytics</li>
+                <li>Forward Case Handoff inbox</li>
+                <li>Priority Support Desk</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Network (Chain)</h3>
+              <p style="font-size: 1.5rem; font-weight: 700; color: #1e524e; margin: 0 0 0.5rem">Custom <span style="font-size: 0.9rem; font-weight: normal; color: #64748b">/ mo</span></p>
+              <p style="font-size: 0.85rem; color: #64748b; margin-top: 0">From ₹12,999 / mo</p>
+              <ul>
+                <li>Multi-site management console</li>
+                <li>SLA-backed uptime guarantees</li>
+                <li>Custom branding on artifacts</li>
+                <li>Dedicated Account Manager</li>
+                <li>Historical data migration</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 9 -->
+      <section class="slide" id="slide-9">
+        <header class="slide-header">
+          <div>
+            <span class="brand-tag">Deployment</span>
+            <h2 class="slide-title">Go Live in 10 Minutes — Zero Complex Setup</h2>
+          </div>
+          <span>09 / 10</span>
+        </header>
+        <div class="slide-body">
+          <div class="card-grid-2">
+            <div class="card">
+              <h3>Mobile & Web Workstations</h3>
+              <ul>
+                <li><strong>Android App:</strong> Install secure APK for doctors and mobile nursing staff.</li>
+                <li><strong>Browser Web Desk:</strong> Access app.aarogyaoneconnect.in directly from any PC workstation at reception.</li>
+                <li><strong>Existing Hardware:</strong> Works seamlessly on smartphones, tablets, laptops, and PCs without buying new servers.</li>
+              </ul>
+            </div>
+            <div class="card card-highlight">
+              <h3>14-Day Risk-Free Private Pilot</h3>
+              <ul>
+                <li>Fully functional private tenant provisioned for your clinic in minutes.</li>
+                <li>Test on real OPD patients for two weeks with zero obligation.</li>
+                <li>Complete onboarding & staff walk-through support provided.</li>
+                <li>Export your data anytime if you decide not to continue.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>Aarogya One Connect — Client Presentation</span>
+          <span>Confidential</span>
+        </footer>
+      </section>
+
+      <!-- SLIDE 10 -->
+      <section class="slide slide-dark" id="slide-10">
+        <header class="slide-header">
+          <span class="brand-tag">Get Started Today</span>
+          <span>10 / 10</span>
+        </header>
+        <div class="title-hero">
+          <h1>Transform Your OPD Operations</h1>
+          <p class="sub">Book your 14-day risk-free pilot or live clinical walkthrough</p>
+          <div style="text-align: left; max-width: 600px; margin: 0 auto; font-size: 1.3rem; line-height: 2;">
+            <div>📞 <strong>WhatsApp / Phone:</strong> +91 75660 99983</div>
+            <div>✉️ <strong>Sales Email:</strong> sales@aarogyaoneconnect.in</div>
+            <div>🌐 <strong>Official Website:</strong> www.aarogyaoneconnect.in</div>
+          </div>
+        </div>
+        <footer class="slide-footer">
+          <span>www.aarogyaoneconnect.in</span>
+          <span>Aarogya One Connect · Professional Clinic OS</span>
+        </footer>
+      </section>
+    </div>
+
+    <!-- Navigation Control Bar -->
+    <div class="nav-bar">
+      <button class="nav-btn" onclick="prevSlide()">❮ Prev</button>
+      <span id="slide-num">Slide 1 of 10</span>
+      <button class="nav-btn" onclick="nextSlide()">Next ❯</button>
+      <button class="nav-btn" onclick="toggleFullScreen()">⛶ Fullscreen</button>
+    </div>
+
+    <script>
+      let currentSlide = 1;
+      const totalSlides = 10;
+
+      function showSlide(n) {
+        if (n < 1) n = 1;
+        if (n > totalSlides) n = totalSlides;
+        currentSlide = n;
+
+        document.querySelectorAll('.slide').forEach((slide, index) => {
+          slide.classList.toggle('active', index === currentSlide - 1);
+        });
+
+        document.getElementById('slide-num').innerText = `Slide ${currentSlide} of ${totalSlides}`;
+      }
+
+      function nextSlide() {
+        showSlide(currentSlide + 1);
+      }
+
+      function prevSlide() {
+        showSlide(currentSlide - 1);
+      }
+
+      function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      }
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === 'Space' || e.key === 'PageDown') {
+          nextSlide();
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          prevSlide();
+        }
+      });
+    </script>
+  </body>
+</html>

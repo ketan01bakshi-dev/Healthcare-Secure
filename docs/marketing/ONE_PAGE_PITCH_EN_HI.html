@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Aarogya One Connect — Professional OPD Pitch</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 10mm;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        font-size: 9.5pt;
+        line-height: 1.45;
+        color: #1e293b;
+        background: #fff;
+      }
+      .page {
+        max-width: 210mm;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+      }
+      .brand {
+        font-weight: 800;
+        font-size: 16pt;
+        color: #1e524e;
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .brand::before {
+        content: "";
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #2a6f6a;
+        border-radius: 2px;
+      }
+      .meta {
+        font-size: 8.5pt;
+        color: #64748b;
+        text-align: right;
+        line-height: 1.3;
+      }
+      h1 {
+        font-family: Georgia, serif;
+        font-size: 16pt;
+        margin: 0 0 16px;
+        color: #0f172a;
+        line-height: 1.35;
+        font-weight: 700;
+        border-left: 3px solid #2a6f6a;
+        padding-left: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px 24px;
+      }
+      .en-cell {
+        background: #fff;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .hi-cell {
+        font-family: "Nirmala UI", "Mangal", sans-serif;
+        background: #f8fafc;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      h2 {
+        font-size: 10pt;
+        margin: 0 0 8px;
+        color: #2a6f6a;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 3px;
+        font-weight: 700;
+      }
+      ul {
+        margin: 0;
+        padding-left: 0;
+        list-style: none;
+      }
+      li {
+        margin-bottom: 5px;
+        position: relative;
+        padding-left: 14px;
+      }
+      li::before {
+        content: "•";
+        color: #2a6f6a;
+        font-weight: bold;
+        display: inline-block;
+        width: 14px;
+        margin-left: -14px;
+      }
+      .highlight-box {
+        background: #f0fdfa;
+        border-left: 4px solid #0d9488;
+        border-radius: 0 6px 6px 0;
+        padding: 10px 12px;
+        margin: 8px 0;
+        font-size: 9pt;
+        color: #115e59;
+        line-height: 1.4;
+      }
+      .price-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #cbd5e1;
+        margin-top: 8px;
+      }
+      .price-table th,
+      .price-table td {
+        padding: 6px 10px;
+        text-align: left;
+      }
+      .price-table th {
+        background: #1e524e;
+        color: white;
+        font-size: 8.5pt;
+        font-weight: 600;
+        border-bottom: 1px solid #1e524e;
+      }
+      .price-table td {
+        border-bottom: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
+        font-size: 8.5pt;
+      }
+      .price-table td:last-child {
+        border-right: none;
+      }
+      .price-table tr:last-child td {
+        border-bottom: none;
+      }
+      .price-table tr:nth-child(even) {
+        background: #f8fafc;
+      }
+      .footnote {
+        font-size: 7.5pt;
+        color: #64748b;
+        margin: 4px 0 0;
+      }
+      footer {
+        margin-top: 20px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 8.5pt;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .cta-btn {
+        background: linear-gradient(135deg, #2a6f6a 0%, #1e524e 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 700;
+        display: inline-block;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 4px 6px rgba(42, 111, 106, 0.25);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      .cta-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 12px rgba(42, 111, 106, 0.35);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <div class="brand">Aarogya One Connect</div>
+        <div class="meta">
+          Professional Clinic OS · India<br />
+          www.aarogyaoneconnect.in
+        </div>
+      </header>
+
+      <h1>The OPD desk that travels with the doctor — and stays on the front-desk PC.</h1>
+
+      <div class="grid">
+        <!-- Row 1: Workflow -->
+        <div class="en-cell">
+          <div>
+            <h2>Clinical Workflow</h2>
+            <p>
+              Modernize your practice with a <strong>multi-role desk</strong> that eliminates paper
+              friction.
+            </p>
+            <ul>
+              <li><strong>Voice Rx:</strong> Speak your prescription; AI handles the structure.</li>
+              <li><strong>Integrated Billing:</strong> Dynamic UPI QR for instant fee collection.</li>
+              <li><strong>Role Desks:</strong> Dedicated views for Doctor, Staff, Reception, and Lab.</li>
+              <li><strong>Patient Analytics:</strong> Track trends and medication frequencies.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="hi-cell">
+          <div>
+            <h2>कार्यप्रवाह (Workflow)</h2>
+            <p>
+              अपने क्लिनिक को एक <strong>मल्टी-रोल डेस्क</strong> के साथ आधुनिक बनाएं और कागजी कार्रवाई को खत्म करें।
+            </p>
+            <ul>
+              <li><strong>वॉइस Rx:</strong> बोलकर पर्चा लिखें; AI उसे व्यवस्थित करेगा।</li>
+              <li><strong>एकीकृत बिलिंग:</strong> त्वरित शुल्क संग्रह के लिए डायनामिक UPI QR।</li>
+              <li><strong>समर्पित डेस्क:</strong> डॉक्टर, स्टाफ, रिसेप्शन और लैब के लिए अलग व्यू।</li>
+              <li><strong>पेशेंट एनालिटिक्स:</strong> मरीज के रुझानों और दवा की आवृत्ति को ट्रैक करें।</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Row 2: Privacy -->
+        <div class="en-cell">
+          <div>
+            <h2>Privacy First</h2>
+            <div class="highlight-box">
+              <strong>HMAC Blind Identity:</strong> We never store searchable patient phone numbers.
+              Data is logically isolated and hosted in secure Indian data centers.
+            </div>
+          </div>
+        </div>
+        <div class="hi-cell">
+          <div>
+            <h2>गोपनीयता सर्वोपरि</h2>
+            <div class="highlight-box">
+              <strong>Blind Identity:</strong> हम कभी भी मरीज के सर्च करने योग्य फोन नंबर स्टोर नहीं करते। आपका डेटा सुरक्षित भारतीय डेटा केंद्रों में स्टोर होता है।
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Pricing -->
+        <div class="en-cell">
+          <div>
+            <h2>Pricing</h2>
+            <table class="price-table">
+              <thead>
+                <tr>
+                  <th>Plan</th>
+                  <th>Investment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Starter</strong> (Solo)</td>
+                  <td>₹1,999 / mo</td>
+                </tr>
+                <tr>
+                  <td><strong>Clinic</strong> (Multi-doc)</td>
+                  <td>₹5,499 / mo</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="footnote">
+              * Lower-band pricing · 14-day pilot · Annual plans save 2 months.
+            </p>
+          </div>
+        </div>
+        <div class="hi-cell">
+          <div>
+            <h2>कीमत (Pricing)</h2>
+            <table class="price-table">
+              <thead>
+                <tr>
+                  <th>प्लान</th>
+                  <th>निवेश (Investment)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Starter</strong> (सोलो)</td>
+                  <td>₹1,999 / माह</td>
+                </tr>
+                <tr>
+                  <td><strong>Clinic</strong> (मल्टी-डॉक)</td>
+                  <td>₹5,499 / माह</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="footnote">
+              * 14-दिवसीय जोखिम-मुक्त पायलट। सालाना प्लान पर 2 महीने की छूट।
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div>
+          <a href="mailto:sales@aarogyaoneconnect.in" class="cta-btn">Book Demo · डेमो बुक करें</a><br />
+          <span style="display:inline-block; margin-top:8px">sales@aarogyaoneconnect.in · +91 75660 99983</span>
+        </div>
+        <div style="text-align:right">
+          Staff Portal: app.aarogyaoneconnect.in<br />
+          © 2026 Aarogya One Connect
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

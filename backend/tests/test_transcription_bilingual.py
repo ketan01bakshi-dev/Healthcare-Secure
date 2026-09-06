@@ -191,6 +191,17 @@ def test_groq_hindi_skips_llm_when_whisper_already_english() -> None:
         translate_fn.assert_not_called()
 
 
+def test_normalize_input_language_auto() -> None:
+    from app.services.transcription import normalize_input_language
+
+    assert normalize_input_language("auto") == "auto"
+    assert normalize_input_language("Automatic") == "auto"
+    assert normalize_input_language("en") == "en"
+    assert normalize_input_language("hi") == "hi"
+    with pytest.raises(ValueError):
+        normalize_input_language("fr")
+
+
 def test_transcript_needs_english_translation_devanagari_only() -> None:
     assert transcript_needs_english_translation("तीन दिन से पेट दर्द") is True
     assert transcript_needs_english_translation("Abdominal pain for 3 days") is False
@@ -247,10 +258,10 @@ def test_api_defaults_language_en_when_omitted(client: TestClient) -> None:
         )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["source_language"] == "en"
+    assert body["source_language"] == "auto"
     assert body["output_language"] == "en"
     assert body["transcript"] == "ok"
-    assert mock_tx.call_args.kwargs.get("source_language") == "en"
+    assert mock_tx.call_args.kwargs.get("source_language") == "auto"
 
 
 def test_api_passes_hindi_language(client: TestClient) -> None:

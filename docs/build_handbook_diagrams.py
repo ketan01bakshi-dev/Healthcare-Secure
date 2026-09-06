@@ -124,7 +124,7 @@ def main() -> None:
         1.5,
         2.2,
         1.8,
-        "Ephemeral Rx PDFs\n24h share links\nHMAC signed",
+        "Ephemeral Rx PDFs\n72h share links\nHMAC signed",
         "#FDEBD0",
         "#AF601A",
     )

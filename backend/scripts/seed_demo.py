@@ -303,8 +303,43 @@ def seed(db) -> list[dict[str, str]]:
             "mrn": "GYN-1011",
             "label": (
                 "[BILLING] Front-desk pitch: today's charges, prior payments, "
-                "amount due — Show pay QR (receptionist PIN 1111)"
+                "amount due — Show pay QR (receptionist)"
             ),
+        },
+        {
+            "key": "twin",
+            "name": "Deepa Verma",
+            "phone": "9876501012",
+            "mrn": "GYN-1012",
+            "label": "[TWINS] Dichorionic twins ~24w — high-risk ANC, growth discordance notes",
+        },
+        {
+            "key": "pap",
+            "name": "Jyoti Malhotra",
+            "phone": "9876501013",
+            "mrn": "GYN-1013",
+            "label": "[SCREEN] Cervical screening / Pap smear + HPV counselling",
+        },
+        {
+            "key": "paid",
+            "name": "Pooja Sinha",
+            "phone": "9876501014",
+            "mrn": "GYN-1014",
+            "label": "[PAID] Fully settled ledger (INR 0 due) — contrast with Sonal billing pitch",
+        },
+        {
+            "key": "ado",
+            "name": "Isha Gupta",
+            "phone": "9876501015",
+            "mrn": "GYN-1015",
+            "label": "[ADOLESCENT] Age 16 — pediatric vitals ranges + primary dysmenorrhea",
+        },
+        {
+            "key": "refer",
+            "name": "Nandini Rao",
+            "phone": "9876501016",
+            "mrn": "GYN-1016",
+            "label": "[REFERRAL] Forward-case / colleague handoff showcase",
         },
     ]
 
@@ -1279,6 +1314,354 @@ def seed(db) -> list[dict[str, str]]:
         )
     )
 
+    # ========== Deepa Verma — twin pregnancy ==========
+    _, blind_twin, _ = blinds["twin"]
+    lmp_twin = (now - timedelta(weeks=24)).date()
+    edd_twin = lmp_twin + timedelta(days=280)
+    when = now - timedelta(days=10)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_twin,
+            {
+                "type": "obstetric_profile",
+                "lmp": lmp_twin.isoformat(),
+                "edd": edd_twin.isoformat(),
+                "edd_source": "lmp",
+                "gravida": "1",
+                "para": "0",
+                "abortions": "0",
+                "living": "0",
+                "blood_group": "O",
+                "rh": "+",
+                "high_risk_notes": "Dichorionic diamniotic twins; growth discordance watch",
+                "clinical_observations": [
+                    f"LMP={lmp_twin.isoformat()}",
+                    "DCDA twins",
+                    "G1P0",
+                ],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": [],
+                "entered_by": DOCTOR,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    for i, (sys, dia, wt, note) in enumerate(
+        [
+            (112, 70, "62.0", "Twin booking — normotensive"),
+            (118, 74, "65.5", "ANC 20w — twin A/B FHR present"),
+            (122, 78, "68.2", "ANC 24w — mild oedema both legs"),
+        ]
+    ):
+        when = now - timedelta(days=30 - i * 10, hours=1)
+        iso, disp = _stamp(when)
+        db.add(
+            _rec(
+                blind_twin,
+                {
+                    "type": "vitals",
+                    "vitals": {
+                        "blood_pressure": f"{sys}/{dia}",
+                        "systolic": str(sys),
+                        "diastolic": str(dia),
+                        "pulse": str(88 + i),
+                        "temperature": "98.2",
+                        "spo2": "98",
+                        "weight": wt,
+                        "height": "160",
+                    },
+                    "diagnostic_notes": note,
+                    "age_years": 31,
+                    "clinical_observations": [f"BP={sys}/{dia}", f"weight={wt}", note],
+                    "diagnoses": [],
+                    "medications": [],
+                    "symptoms": [],
+                    "entered_by": STAFF,
+                    "entered_at": iso,
+                    "entered_at_display": disp,
+                },
+                when,
+            )
+        )
+    when = now - timedelta(days=3)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_twin,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": get_settings().clinic_name,
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": ["fatigue", "mild backache"],
+                "clinical_observations": ["DCDA twins ~24 weeks", "Both FHR present"],
+                "diagnoses": ["Antenatal care — twin pregnancy", "High-risk ANC"],
+                "medications": [
+                    {
+                        "name": "Iron + Folic acid",
+                        "dosage": "1 tablet",
+                        "frequency": "OD after food",
+                        "duration": "30 days",
+                    },
+                    {
+                        "name": "Calcium",
+                        "dosage": "500 mg",
+                        "frequency": "BD",
+                        "duration": "30 days",
+                    },
+                    {
+                        "name": "Aspirin",
+                        "dosage": "75 mg",
+                        "frequency": "OD",
+                        "duration": "until 36 weeks",
+                    },
+                ],
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
+    # ========== Jyoti Malhotra — Pap / cervical screening ==========
+    _, blind_pap, _ = blinds["pap"]
+    when = now - timedelta(days=5)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_pap,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "118/76",
+                    "systolic": "118",
+                    "diastolic": "76",
+                    "pulse": "74",
+                    "temperature": "98.4",
+                    "spo2": "99",
+                    "weight": "58",
+                    "height": "155",
+                },
+                "diagnostic_notes": "Screening visit — asymptomatic",
+                "age_years": 42,
+                "clinical_observations": ["BP=118/76", "screening visit"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": [],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(days=4)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_pap,
+            {
+                "type": "lab_result",
+                "test_name": "Pap smear",
+                "value": "NILM",
+                "unit": "",
+                "reference_range": "Negative for intraepithelial lesion",
+                "collected_at": (now - timedelta(days=5)).date().isoformat(),
+                "clinical_observations": ["Pap=NILM"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": [],
+                "entered_by": LAB,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(days=2)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_pap,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": get_settings().clinic_name,
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": [],
+                "clinical_observations": ["Cervix healthy", "Pap NILM"],
+                "diagnoses": ["Routine cervical screening — normal"],
+                "medications": [],
+                "advice": "Repeat Pap in 3 years; HPV vaccine counselling offered",
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
+    # ========== Pooja Sinha — fully paid ==========
+    _, blind_paid, _ = blinds["paid"]
+    when = now - timedelta(days=1)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_paid,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "120/80",
+                    "systolic": "120",
+                    "diastolic": "80",
+                    "pulse": "72",
+                    "temperature": "98.6",
+                    "spo2": "99",
+                    "weight": "55",
+                    "height": "157",
+                },
+                "diagnostic_notes": "Routine gynae check — settled bill",
+                "age_years": 35,
+                "clinical_observations": ["BP=120/80"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": [],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+
+    # ========== Isha Gupta — adolescent ==========
+    _, blind_ado, _ = blinds["ado"]
+    when = now - timedelta(hours=6)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_ado,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "108/68",
+                    "systolic": "108",
+                    "diastolic": "68",
+                    "pulse": "88",
+                    "temperature": "98.4",
+                    "spo2": "99",
+                    "weight": "48",
+                    "height": "152",
+                },
+                "diagnostic_notes": "Adolescent dysmenorrhea — guardian present",
+                "age_years": 16,
+                "clinical_observations": ["BP=108/68", "age=16y", "weight=48"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": ["severe menstrual pain"],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(hours=4)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_ado,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": get_settings().clinic_name,
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": ["severe lower abdominal pain during menses"],
+                "clinical_observations": ["Abdomen soft", "No mass"],
+                "diagnoses": ["Primary dysmenorrhea — adolescent"],
+                "medications": [
+                    {
+                        "name": "Mefenamic acid",
+                        "dosage": "250 mg",
+                        "frequency": "TDS after food",
+                        "duration": "3 days (with menses)",
+                    }
+                ],
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
+    # ========== Nandini Rao — referral / forward case ==========
+    _, blind_refer, _ = blinds["refer"]
+    when = now - timedelta(days=8)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_refer,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "124/80",
+                    "systolic": "124",
+                    "diastolic": "80",
+                    "pulse": "76",
+                    "temperature": "98.4",
+                    "spo2": "98",
+                    "weight": "61",
+                    "height": "162",
+                },
+                "diagnostic_notes": "Complex case — referred for second opinion",
+                "age_years": 38,
+                "clinical_observations": ["BP=124/80"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": ["irregular bleeding", "fatigue"],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(days=7)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_refer,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": get_settings().clinic_name,
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": ["irregular bleeding x 3 months"],
+                "clinical_observations": ["Uterus bulky", "Awaiting TVS"],
+                "diagnoses": ["Abnormal uterine bleeding — under evaluation"],
+                "medications": [
+                    {
+                        "name": "Tranexamic acid",
+                        "dosage": "500 mg",
+                        "frequency": "TDS",
+                        "duration": "5 days",
+                    }
+                ],
+                "advice": "Forward case pack prepared for colleague review",
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
     # ========== Analytics volume — extra signed Rx over the last week ==========
     analytics_rx = [
         (
@@ -1488,6 +1871,37 @@ def seed(db) -> list[dict[str, str]]:
         reason="Security / MRN identity demo",
         created_by=DOCTOR["display_name"],
     )
+    add_appt(
+        key="twin",
+        display="Deepa Verma",
+        when=now.replace(hour=14, minute=0, second=0, microsecond=0),
+        reason="Twin ANC review",
+        created_by=STAFF["display_name"],
+    )
+    add_appt(
+        key="pap",
+        display="Jyoti Malhotra",
+        when=now.replace(hour=14, minute=30, second=0, microsecond=0),
+        reason="Pap result counselling",
+        created_by=STAFF["display_name"],
+    )
+    add_appt(
+        key="ado",
+        display="Isha Gupta",
+        when=now.replace(hour=15, minute=0, second=0, microsecond=0),
+        reason="Adolescent dysmenorrhea",
+        created_by=STAFF2["display_name"],
+    )
+    add_appt(
+        key="refer",
+        display="Nandini Rao",
+        when=(now + timedelta(days=2)).replace(
+            hour=11, minute=0, second=0, microsecond=0
+        ),
+        reason="Colleague handoff / referral review",
+        created_by=DOCTOR["display_name"],
+        notes=f"{DEMO_TAG};source:referral",
+    )
     # Future follow-ups (case brief next appointment)
     add_appt(
         key="anc",
@@ -1575,6 +1989,16 @@ def seed(db) -> list[dict[str, str]]:
     add_bill("bill", "charge", 250, "Today's medicine dispensing fee", 0.03, RECEPTION)
     # Lakshmi — small walk-in charge
     add_bill("pmb", "charge", 700, "PMB evaluation consult", 0.04, RECEPTION)
+    # New showcase patients
+    add_bill("twin", "charge", 3000, "High-risk twin ANC visit", 0.1, RECEPTION)
+    add_bill("twin", "payment", 1500, "Partial UPI", 0.05, RECEPTION)
+    add_bill("pap", "charge", 800, "Screening consult + Pap", 2, RECEPTION)
+    add_bill("pap", "payment", 800, "Full UPI settlement", 1.5, RECEPTION)
+    add_bill("paid", "charge", 600, "Gynae consult", 3, RECEPTION)
+    add_bill("paid", "charge", 400, "USG pelvis", 3, RECEPTION)
+    add_bill("paid", "payment", 1000, "Full settlement UPI", 2.5, RECEPTION)
+    add_bill("ado", "charge", 500, "Adolescent consult", 0.1, RECEPTION)
+    add_bill("refer", "charge", 900, "Complex AUB evaluation", 7, RECEPTION)
 
     # ========== Video consult timeline (Ananya) ==========
     _, blind_anc_v, _ = blinds["anc"]
@@ -1638,6 +2062,8 @@ def seed(db) -> list[dict[str, str]]:
         ("pmb", "Walk-in PMB", 9),
         ("dys", "Pain — priority", 9),
         ("bill", "Billing / pay QR demo", 9),
+        ("twin", "Twin ANC priority", 9),
+        ("ado", "Adolescent walk-in", 10),
     ]:
         _, blind, _ = blinds[key]
         db.add(
@@ -1723,14 +2149,20 @@ def main() -> int:
     for row in cheat:
         print(f"  {row['name']}")
         print(f"    Mobile: {row['phone']}   MRN: {row['mrn']}")
-        print(f"    Showcase: {row['use']}")
+        use = row["use"].encode("ascii", errors="replace").decode("ascii")
+        print(f"    Showcase: {use}")
         print()
     print("Quick demos:")
     print("  * Pitch script     -> docs\\DEMO_CLIENT.md")
-    print("  * Sonal Desai      -> Patient Info billing + Show pay QR (receptionist 1111)")
+    print("  * Full directory   -> docs\\DEMO_PATIENTS.md")
+    print("  * Sonal Desai      -> Patient Info billing + Show pay QR")
     print("  * Ananya Reddy     -> Visit case brief / alerts / video timeline; billing due")
     print("  * Aisha / Sunita   -> Visit: Load demo transcript -> Prepare -> Sign")
     print("  * Priya Nair       -> Case brief scan cadence shows NT scan DUE")
+    print("  * Deepa Verma      -> Twin pregnancy high-risk ANC")
+    print("  * Isha Gupta       -> Adolescent (age 16) vitals")
+    print("  * Pooja Sinha      -> Fully settled bill (INR 0 due)")
+    print("  * Nandini Rao      -> Forward case / referral")
     print("  * Rekha Sharma     -> Critical BP/Hb; Rx hints; unpaid charges")
     print("  * Neha Kapoor      -> Records audit + MRN identity (security)")
     print("  * More tab         -> Clinic analytics (today / week / top meds)")

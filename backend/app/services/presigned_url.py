@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 
 from app.core.config import settings
 
-PRESIGNED_TTL_SECONDS = 24 * 60 * 60
+PRESIGNED_TTL_SECONDS = 72 * 60 * 60
 
 _STORE_DIR = Path(__file__).resolve().parents[2] / "data" / "presigned_pdfs"
 _lock = threading.Lock()
@@ -116,7 +116,7 @@ def _read_disk(resource_id: str) -> _EphemeralPdf | None:
 def mint_presigned_prescription_url(pdf_bytes: bytes) -> tuple[str, int]:
     """
     Persist PDF bytes on disk and return a URL that cryptographically expires
-    exactly 24 hours after creation.
+    exactly 72 hours after creation.
 
     Token format: ``{resource_id}.{expires_at}.{hmac_sha256}``
     """

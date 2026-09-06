@@ -98,7 +98,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     printRx: "Print prescription",
     prescriptionSection: "Prescription",
     prescriptionHint:
-      "Capture by voice or text, review, then sign and share.",
+      "Type or dictate a clinical note, review, then sign and share.",
     prescriptionMode: "Prescription mode",
     rxModeVoice: "Voice",
     rxModeText: "Text",
@@ -107,8 +107,16 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     rxStepReview: "Review & sign",
     rxStepShare: "Share",
     voiceSpeakLanguage: "Speaking language",
+    voiceLangAuto: "Auto",
     voiceLangEnglish: "English",
     voiceLangHindi: "हिन्दी",
+    clinicalNoteLabel: "Clinical note",
+    clinicalNotePlaceholderRx:
+      "Type or tap the mic to dictate symptoms, diagnosis, and medications…",
+    clinicalNoteDictate: "Dictate into note",
+    recording: "Recording",
+    voiceMicBlockedTitle: "Microphone blocked",
+    voiceMicHelpDismiss: "Got it",
     voiceHintEnglish: "Speak in English. Transcript stays in English for review.",
     voiceHintHindi:
       "Speak in Hindi. Audio is translated to English for review and the prescription.",
@@ -320,7 +328,8 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     forwardCaseHistoryHint:
       "Build one referral PDF from the chart brief, then share externally or hand off to a clinic doctor.",
     forwardNote: "Referral / handoff note",
-    forwardNotePlaceholder: "Optional clinical note for the receiving doctor",
+    forwardNotePlaceholder:
+      "Type or dictate a note for the receiving doctor (English or Hindi)",
     forwardExternal: "External doctor",
     forwardColleague: "Clinic colleague",
     forwardRecipientName: "Recipient name (optional)",
@@ -333,7 +342,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     forwardHandoff: "Hand off",
     forwardSelectDoctor: "Select doctor",
     forwardNoDoctors: "No other doctors on this clinic roster.",
-    forwardPackReady: "Referral PDF ready (link expires in 24 hours).",
+    forwardPackReady: "Referral PDF ready (link expires in 72 hours).",
     forwardPackFailed: "Could not build referral PDF.",
     forwardHandoffOk: "Handoff sent.",
     forwardHandoffFailed: "Could not hand off.",
@@ -556,7 +565,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     printRx: "प्रिस्क्रिप्शन प्रिंट करें",
     prescriptionSection: "नुस्खा",
     prescriptionHint:
-      "आवाज़ या टेक्स्ट से लिखें, समीक्षा करें, फिर साइन और साझा करें।",
+      "नैदानिक नोट टाइप या बोलकर लिखें, समीक्षा करें, फिर साइन और साझा करें।",
     prescriptionMode: "नुस्खा मोड",
     rxModeVoice: "आवाज़",
     rxModeText: "टेक्स्ट",
@@ -565,8 +574,16 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     rxStepReview: "समीक्षा व साइन",
     rxStepShare: "साझा करें",
     voiceSpeakLanguage: "बोलने की भाषा",
+    voiceLangAuto: "Auto",
     voiceLangEnglish: "English",
     voiceLangHindi: "हिन्दी",
+    clinicalNoteLabel: "नैदानिक नोट",
+    clinicalNotePlaceholderRx:
+      "लक्षण, निदान और दवाएँ टाइप करें या माइक से बोलें…",
+    clinicalNoteDictate: "नोट में बोलें",
+    recording: "रिकॉर्ड हो रहा है",
+    voiceMicBlockedTitle: "माइक्रोफ़ोन ब्लॉक है",
+    voiceMicHelpDismiss: "ठीक है",
     voiceHintEnglish: "अंग्रेज़ी में बोलें। ट्रांसक्रिप्ट समीक्षा के लिए अंग्रेज़ी में रहेगा।",
     voiceHintHindi:
       "हिन्दी में बोलें। ऑडियो समीक्षा और नुस्खे के लिए अंग्रेज़ी में अनुवाद होगा।",
@@ -779,7 +796,8 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     forwardCaseHistoryHint:
       "चार्ट सारांश से एक रेफरल PDF बनाएँ, फिर बाहरी डॉक्टर से साझा करें या क्लिनिक डॉक्टर को सौंपें।",
     forwardNote: "रेफरल / हैंडऑफ़ नोट",
-    forwardNotePlaceholder: "प्राप्तकर्ता डॉक्टर के लिए वैकल्पिक नैदानिक नोट",
+    forwardNotePlaceholder:
+      "प्राप्तकर्ता डॉक्टर के लिए नोट टाइप या बोलकर लिखें (अंग्रेज़ी या हिन्दी)",
     forwardExternal: "बाहरी डॉक्टर",
     forwardColleague: "क्लिनिक सहयोगी",
     forwardRecipientName: "प्राप्तकर्ता नाम (वैकल्पिक)",
@@ -792,7 +810,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     forwardHandoff: "हैंड ऑफ़",
     forwardSelectDoctor: "डॉक्टर चुनें",
     forwardNoDoctors: "इस क्लिनिक रोस्टर पर कोई अन्य डॉक्टर नहीं।",
-    forwardPackReady: "रेफरल PDF तैयार (लिंक 24 घंटे में समाप्त)।",
+    forwardPackReady: "रेफरल PDF तैयार (लिंक 72 घंटे में समाप्त)।",
     forwardPackFailed: "रेफरल PDF नहीं बन सका।",
     forwardHandoffOk: "हैंडऑफ़ भेजा गया।",
     forwardHandoffFailed: "हैंड ऑफ़ नहीं हो सका।",
@@ -986,7 +1004,7 @@ export function LanguageToggle() {
       <span>{t("language")}</span>
       <select
         aria-label={t("language")}
-        className="rounded border border-slate-200 bg-white px-2 py-1 text-sm"
+        className="rounded border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900"
         onChange={(e) => setLocale(e.target.value as Locale)}
         value={locale}
       >

@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     # Public base used when minting shareable prescription download links
     public_api_base_url: str = "http://127.0.0.1:8000"
 
+    # Clinic gate ticket TTL after clinic password unlock (seconds; default 8h workday)
+    clinic_ticket_ttl_seconds: int = 8 * 60 * 60
+
     # Clinic users: user_id|Display Name|doctor|pin;...|staff|...;...|lab|pin
     # PIN may be plaintext or pbkdf2$salt$hex (see scripts/hash_pin.py)
     clinic_users: str = ""

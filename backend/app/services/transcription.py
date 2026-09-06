@@ -316,6 +316,55 @@ def normalize_speak_language(value: str | None) -> SpeakLanguage:
     raise ValueError("language must be en or hi")
 
 
+def normalize_input_language(value: str | None) -> str:
+    """Accept en, hi, or auto (Whisper EN + LLM translate when Devanagari remains)."""
+    lang = (value or "auto").strip().lower()
+    if lang in {"en", "english"}:
+        return "en"
+    if lang in {"hi", "hindi", "hin"}:
+        return "hi"
+    if lang in {"auto", "automatic"}:
+        return "auto"
+    raise ValueError("language must be en, hi, or auto")
+
+
+def _transcribe_auto(
+    buffer: io.BytesIO,
+    *,
+    clinic_id: str | None = None,
+    db: Any = None,
+    alias_map: dict[str, str] | None = None,
+) -> str:
+    """English Whisper first; LLM clinical translation when Hindi script remains."""
+    provider = settings.whisper_provider.lower().strip()
+    if provider == "local":
+        text = _transcribe_local(
+            buffer,
+            "en",
+            clinic_id=clinic_id,
+            db=db,
+            clinic_aliases=_alias_terms(alias_map),
+        )
+    elif provider in {"openai", "groq"}:
+        text = _transcribe_cloud(
+            buffer,
+            "en",
+            clinic_id=clinic_id,
+            db=db,
+            alias_map=alias_map,
+        )
+    else:
+        raise RuntimeError(
+            f"Unsupported WHISPER_PROVIDER '{settings.whisper_provider}'. "
+            "Use local, openai, or groq."
+        )
+    if transcript_needs_english_translation(text):
+        from app.services.lml_parser import translate_clinical_transcript_to_english
+
+        return translate_clinical_transcript_to_english(text, clinic_id=clinic_id)
+    return text
+
+
 def transcribe_audio_buffer(
     buffer: io.BytesIO,
     *,
@@ -339,7 +388,35 @@ def transcribe_audio_buffer(
     if buffer.getbuffer().nbytes == 0:
         raise ValueError("audio payload is empty")
 
-    lang = normalize_speak_language(str(source_language))
+    raw_lang = str(source_language or "auto").strip().lower()
+    if raw_lang in {"auto", "automatic"}:
+        resolved_aliases = alias_map
+        if resolved_aliases is None:
+            try:
+                from app.services.stt_memory import load_clinic_alias_map
+
+                resolved_aliases = load_clinic_alias_map(db, clinic_id)
+            except Exception:  # noqa: BLE001
+                resolved_aliases = {}
+        buffer.seek(0)
+        try:
+            transcript = _transcribe_auto(
+                buffer,
+                clinic_id=clinic_id,
+                db=db,
+                alias_map=resolved_aliases,
+            )
+            try:
+                from app.services.stt_memory import apply_term_aliases
+
+                transcript = apply_term_aliases(transcript, resolved_aliases)
+            except Exception:  # noqa: BLE001
+                pass
+            return transcript
+        finally:
+            buffer.seek(0)
+
+    lang = normalize_speak_language(raw_lang)
     provider = settings.whisper_provider.lower().strip()
     resolved_aliases = alias_map
     if resolved_aliases is None:

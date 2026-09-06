@@ -71,9 +71,14 @@ Speak clearly in English (Groq/Whisper). Or use **Load demo script** on Visit if
 | **Kavita Mehta** | 9876501002 | PCOS labs + paid bill + More → Analytics |
 | **Lakshmi Iyer** | 9876501006 | Waiting List **Open** → lock |
 | **Sonal Desai** | 9876501011 | **Billing pitch** — amount due + Show pay QR |
+| **Pooja Sinha** | 9876501014 | Fully settled (₹0 due) — contrast with Sonal |
+| **Deepa Verma** | 9876501012 | Twin pregnancy high-risk ANC |
+| **Isha Gupta** | 9876501015 | Adolescent (age 16) vitals + dysmenorrhea |
+| **Jyoti Malhotra** | 9876501013 | Pap screening NILM |
+| **Nandini Rao** | 9876501016 | Forward case / referral |
 | **Fatima Khan** | 9876501005 | Tomorrow **video** appointment |
 
-**More → Clinic analytics:** today counts, week bars, top medications/diagnoses, vitals trend for locked patient.
+**Full directory:** [`DEMO_PATIENTS.md`](DEMO_PATIENTS.md)
 
 ---
 

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import CollapsibleSection from "@/components/CollapsibleSection";
+import ThemedSelect from "@/components/ThemedSelect";
 import { usePatient } from "@/context/PatientContext";
 import { apiFetch } from "@/lib/doctorSession";
 import { useI18n } from "@/lib/i18n";
@@ -16,6 +17,20 @@ import {
 
 const INPUT =
   "mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none ring-slate-400 focus:ring-2";
+
+const BLOOD_OPTIONS = [
+  { value: "", label: "—" },
+  { value: "A", label: "A" },
+  { value: "B", label: "B" },
+  { value: "AB", label: "AB" },
+  { value: "O", label: "O" },
+];
+
+const RH_OPTIONS = [
+  { value: "", label: "—" },
+  { value: "+", label: "Positive" },
+  { value: "-", label: "Negative" },
+];
 
 /** Obstetric card: LMP, EDD, GPLA, blood group — shown on Patient tab when locked. */
 export default function ObstetricProfileForm() {
@@ -211,30 +226,21 @@ export default function ObstetricProfileForm() {
         </label>
         <label className="text-xs font-medium text-slate-600">
           Blood group
-          <select
-            className={INPUT}
+          <ThemedSelect
+            aria-label="Blood group"
+            onChange={(v) => setField("blood_group", v)}
+            options={BLOOD_OPTIONS}
             value={profile.blood_group}
-            onChange={(e) => setField("blood_group", e.target.value)}
-          >
-            <option value="">—</option>
-            {["A", "B", "AB", "O"].map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
+          />
         </label>
         <label className="text-xs font-medium text-slate-600">
           Rh
-          <select
-            className={INPUT}
+          <ThemedSelect
+            aria-label="Rh"
+            onChange={(v) => setField("rh", v)}
+            options={RH_OPTIONS}
             value={profile.rh}
-            onChange={(e) => setField("rh", e.target.value)}
-          >
-            <option value="">—</option>
-            <option value="+">Positive</option>
-            <option value="-">Negative</option>
-          </select>
+          />
         </label>
         <label className="sm:col-span-2 text-xs font-medium text-slate-600">
           High-risk notes

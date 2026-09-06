@@ -448,7 +448,8 @@ export async function unlockClinicUser(
     }),
   });
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Invalid PIN"));
+    const errText = await readApiError(response, "Invalid PIN");
+    throw new Error(errText);
   }
   const data = (await response.json()) as {
     session_token?: string | null;

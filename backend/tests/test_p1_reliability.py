@@ -300,8 +300,11 @@ def test_auth_status_does_not_list_clinics(client: TestClient) -> None:
 
 def test_visit_count_does_not_increase_on_patient_open(client: TestClient) -> None:
     """Opening a patient (tokenize) must not inflate visit_count; bookings do."""
+    import uuid
+
     headers = _session(client, "dr1", "1234")
-    payload = {"patient_name": "Visit Count Pat", "patient_phone": "9111122233"}
+    phone = "9" + f"{uuid.uuid4().int % 10**9:09d}"
+    payload = {"patient_name": "Visit Count Pat", "patient_phone": phone}
 
     first = client.post("/api/v1/history/tokenize", headers=headers, json=payload)
     assert first.status_code == 200, first.text
@@ -323,14 +326,14 @@ def test_visit_count_does_not_increase_on_patient_open(client: TestClient) -> No
     from datetime import datetime, timedelta, timezone
 
     when = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
-    raw = build_patient_raw_identifier("Visit Count Pat", "9111122233")
+    raw = build_patient_raw_identifier("Visit Count Pat", phone)
     booked = client.post(
         "/api/v1/appointments",
         headers=headers,
         json={
             "display_name": "Visit Count Pat",
             "raw_identifier": raw,
-            "phone": "9111122233",
+            "phone": phone,
             "scheduled_at": when,
             "reason": "Checkup",
             "send_sms": False,

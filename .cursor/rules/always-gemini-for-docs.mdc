@@ -1,0 +1,12 @@
+---
+description: Reminder that project documentation policy requires Google Gemini for all doc and marketing writing tasks.
+alwaysApply: true
+---
+
+# Project convention: documentation uses Gemini
+
+This Healthcare / Aarogya One Connect repo requires **Google Gemini** for all documentation, marketing copy, privacy/legal drafts, runbooks, and user-facing prose.
+
+**Before writing or rewriting docs:** confirm the chat model is Google Gemini. If not, ask the user to switch models.
+
+Full policy: see rule `documentation-gemini` (`.cursor/rules/documentation-gemini.mdc`) or globs under `docs/`, `deploy/www/`, and `*.md` runbooks.

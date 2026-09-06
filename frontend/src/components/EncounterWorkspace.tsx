@@ -5,8 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CollapsibleSection from "@/components/CollapsibleSection";
 import { usePatient } from "@/context/PatientContext";
 import PrescriptionShare from "@/components/PrescriptionShare";
-import VoiceRecorder from "@/components/VoiceRecorder";
+import ClinicalNoteInput from "@/components/ClinicalNoteInput";
 import { getPrefillDoctorName, useClinicFeatures } from "@/components/DoctorGate";
+import ThemedSelect from "@/components/ThemedSelect";
+import type { SpeakLanguage } from "@/hooks/useVoiceTranscription";
 import { apiFetch } from "@/lib/doctorSession";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -14,12 +16,6 @@ import {
   formatInvestigationsLine,
   stripInvestigationsLine,
 } from "@/lib/recommendedDiagnostics";
-
-type TranscriptItem = {
-  id: string;
-  text: string;
-  at: number;
-};
 
 type MedicationDraft = {
   name: string;
@@ -35,7 +31,6 @@ type ClinicalDraft = {
   medications: MedicationDraft[];
 };
 
-type RxMode = "voice" | "text";
 type RxStep = "capture" | "review" | "share";
 
 const EMPTY_MED: MedicationDraft = {
@@ -129,17 +124,6 @@ function textToLines(text: string): string[] {
     .filter(Boolean);
 }
 
-function draftHasContent(d: ClinicalDraft): boolean {
-  return (
-    d.diagnoses.length > 0 ||
-    d.symptoms.length > 0 ||
-    d.clinical_observations.length > 0 ||
-    d.medications.some((m) =>
-      [m.name, m.dosage, m.frequency, m.duration].some((v) => v.trim()),
-    )
-  );
-}
-
 function mergeInvestigations(
   draft: ClinicalDraft,
   selectedLabels: string[],
@@ -152,8 +136,8 @@ function mergeInvestigations(
   };
 }
 
-function transcriptKey(items: TranscriptItem[]): string {
-  return items.map((item) => item.id).join("\n");
+function noteParseKey(note: string): string {
+  return note.trim();
 }
 
 function snapshotFromParsed(clinical: ClinicalDraft): ClinicalDraft {
@@ -304,10 +288,9 @@ export default function EncounterWorkspace() {
     [selectedDiagnostics],
   );
   const [step, setStep] = useState<RxStep>("capture");
-  const [mode, setMode] = useState<RxMode>("voice");
   const [demoOpen, setDemoOpen] = useState(false);
-  const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
-  const [textForm, setTextForm] = useState<ClinicalDraft>(EMPTY_DRAFT);
+  const [captureNote, setCaptureNote] = useState("");
+  const [voiceSegmentCount, setVoiceSegmentCount] = useState(0);
   const [parsing, setParsing] = useState(false);
   const [signing, setSigning] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
@@ -332,35 +315,26 @@ export default function EncounterWorkspace() {
   }>({ key: "", promise: null, result: null });
 
   useEffect(() => {
-    setTextForm((prev) => mergeInvestigations(prev, selectedDiagnosticLabels));
     setDraft((prev) =>
       prev ? mergeInvestigations(prev, selectedDiagnosticLabels) : prev,
     );
   }, [selectedDiagnosticLabels]);
 
-  const onTranscript = useCallback(
-    (text: string, meta?: { language?: "en" | "hi" }) => {
-      const trimmed = text.trim();
-      if (!trimmed) return;
+  const onDictation = useCallback(
+    (_text: string, meta?: { language?: SpeakLanguage }) => {
       if (meta?.language === "en" || meta?.language === "hi") {
         setSourceLanguage(meta.language);
       }
-      setTranscripts((prev) => [
-        ...prev,
-        { id: `${Date.now()}-${prev.length}`, text: trimmed, at: Date.now() },
-      ]);
+      setVoiceSegmentCount((n) => n + 1);
+      setWriteError(null);
     },
     [],
   );
 
-  const removeTranscript = useCallback((id: string) => {
-    setTranscripts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
   const clearSession = useCallback(() => {
     parsePrefetchRef.current = { key: "", promise: null, result: null };
-    setTranscripts([]);
-    setTextForm(EMPTY_DRAFT);
+    setCaptureNote("");
+    setVoiceSegmentCount(0);
     setPdfBase64(null);
     setDownloadUrl(null);
     setWriteError(null);
@@ -418,23 +392,21 @@ export default function EncounterWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (mode !== "voice" || !locked || !rawIdentifier.trim()) {
+    if (!locked || !rawIdentifier.trim()) {
       return;
     }
-    if (transcripts.length === 0) {
+    const note = captureNote.trim();
+    if (!note) {
       parsePrefetchRef.current = { key: "", promise: null, result: null };
       return;
     }
-    const key = transcriptKey(transcripts);
+    const key = noteParseKey(note);
     const timer = window.setTimeout(() => {
       const current = parsePrefetchRef.current;
-      if (
-        current.key === key &&
-        (current.result || current.promise)
-      ) {
+      if (current.key === key && (current.result || current.promise)) {
         return;
       }
-      const promise = requestParse(transcripts.map((item) => item.text));
+      const promise = requestParse([note]);
       parsePrefetchRef.current = { key, promise, result: null };
       void promise
         .then((result) => {
@@ -449,21 +421,22 @@ export default function EncounterWorkspace() {
         });
     }, PARSE_PREFETCH_MS);
     return () => window.clearTimeout(timer);
-  }, [locked, mode, rawIdentifier, requestParse, transcripts]);
+  }, [captureNote, locked, rawIdentifier, requestParse]);
 
   const parseForReview = useCallback(async () => {
     if (!locked || !rawIdentifier.trim()) {
       setWriteError("Select a patient before preparing the prescription.");
       return;
     }
-    if (transcripts.length === 0) {
-      setWriteError("Record at least one voice note first.");
+    const note = captureNote.trim();
+    if (!note) {
+      setWriteError("Type or dictate a clinical note first.");
       return;
     }
     setParsing(true);
     setWriteError(null);
     try {
-      const key = transcriptKey(transcripts);
+      const key = noteParseKey(note);
       const prefetched = parsePrefetchRef.current;
       let snapshot: ClinicalDraft;
       if (prefetched.key === key && prefetched.result) {
@@ -471,7 +444,7 @@ export default function EncounterWorkspace() {
       } else if (prefetched.key === key && prefetched.promise) {
         snapshot = await prefetched.promise;
       } else {
-        snapshot = await requestParse(transcripts.map((item) => item.text));
+        snapshot = await requestParse([note]);
       }
       goToReview(
         mergeInvestigations(
@@ -483,7 +456,7 @@ export default function EncounterWorkspace() {
           },
           selectedDiagnosticLabels,
         ),
-        transcripts.length,
+        voiceSegmentCount,
         snapshot,
       );
     } catch (err) {
@@ -492,38 +465,14 @@ export default function EncounterWorkspace() {
       setParsing(false);
     }
   }, [
+    captureNote,
     goToReview,
     locked,
     rawIdentifier,
     requestParse,
     selectedDiagnosticLabels,
-    transcripts,
+    voiceSegmentCount,
   ]);
-
-  const textToReview = useCallback(() => {
-    if (!locked || !rawIdentifier.trim()) {
-      setWriteError("Select a patient before preparing the prescription.");
-      return;
-    }
-    if (!draftHasContent(textForm)) {
-      setWriteError("Enter at least one diagnosis, note, or medication.");
-      return;
-    }
-    setWriteError(null);
-    goToReview(
-      mergeInvestigations(
-        {
-          symptoms: [...textForm.symptoms],
-          clinical_observations: [...textForm.clinical_observations],
-          diagnoses: [...textForm.diagnoses],
-          medications: textForm.medications.map((m) => ({ ...m })),
-        },
-        selectedDiagnosticLabels,
-      ),
-      0,
-      null,
-    );
-  }, [goToReview, locked, rawIdentifier, selectedDiagnosticLabels, textForm]);
 
   const signPrescription = useCallback(
     async (opts?: { skipHints?: boolean }) => {
@@ -577,7 +526,7 @@ export default function EncounterWorkspace() {
             raw_identifier: rawIdentifier.trim(),
             doctor_name: doctorName.trim(),
             transcript_count: signTranscriptCount,
-            transcripts: transcripts.map((t) => t.text),
+            transcripts: signTranscriptCount > 0 ? [captureNote.trim()] : [],
             clinical,
             parsed_clinical: parsedClinical,
             source_language: sourceLanguage,
@@ -616,7 +565,7 @@ export default function EncounterWorkspace() {
       selectedDiagnosticLabels,
       signTranscriptCount,
       sourceLanguage,
-      transcripts,
+      captureNote,
     ],
   );
 
@@ -627,8 +576,7 @@ export default function EncounterWorkspace() {
   };
 
   const showClear =
-    transcripts.length > 0 ||
-    draftHasContent(textForm) ||
+    captureNote.trim().length > 0 ||
     !!draft ||
     !!pdfBase64 ||
     !!downloadUrl;
@@ -674,184 +622,61 @@ export default function EncounterWorkspace() {
 
         {step === "capture" ? (
           <div className="space-y-4">
-            <div
-              aria-label={t("prescriptionMode")}
-              className="flex rounded-lg border border-slate-200 bg-slate-100 p-1"
-              role="tablist"
-            >
-              {(["voice", "text"] as const).map((m) => {
-                const active = mode === m;
-                return (
-                  <button
-                    aria-selected={active}
-                    className={`min-h-11 flex-1 rounded-md text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                    key={m}
-                    onClick={() => setMode(m)}
-                    role="tab"
-                    type="button"
-                  >
-                    {m === "voice" ? t("rxModeVoice") : t("rxModeText")}
-                  </button>
-                );
-              })}
+            <ClinicalNoteInput
+              disabled={!locked}
+              id="rx-clinical-note"
+              label={t("clinicalNoteLabel")}
+              minRows={5}
+              onChange={setCaptureNote}
+              onDictation={onDictation}
+              placeholder={t("clinicalNotePlaceholderRx")}
+              value={captureNote}
+            />
+
+            <div>
+              <button
+                className="text-xs font-medium uppercase tracking-wide text-slate-500"
+                onClick={() => setDemoOpen((v) => !v)}
+                type="button"
+              >
+                {demoOpen ? t("hideDemoScripts") : t("demoScripts")}
+              </button>
+              {demoOpen ? (
+                <ThemedSelect
+                  aria-label={t("loadDemoTranscript")}
+                  className="mt-2"
+                  disabled={!locked}
+                  onChange={(id) => {
+                    if (!id) return;
+                    const script = demoScripts.find((s) => s.id === id);
+                    if (!script) return;
+                    setCaptureNote((prev) =>
+                      prev.trim()
+                        ? `${prev.trim()}\n${script.text}`
+                        : script.text,
+                    );
+                    setWriteError(null);
+                  }}
+                  options={[
+                    { value: "", label: t("loadDemoTranscript") },
+                    ...demoScripts.map((s) => ({
+                      value: s.id,
+                      label: s.label,
+                    })),
+                  ]}
+                  value=""
+                />
+              ) : null}
             </div>
 
-            {mode === "voice" ? (
-              <div className="space-y-4">
-                <VoiceRecorder
-                  disabled={!locked}
-                  embedded
-                  onTranscript={onTranscript}
-                />
-
-                <div>
-                  <button
-                    className="text-xs font-medium uppercase tracking-wide text-slate-500"
-                    onClick={() => setDemoOpen((v) => !v)}
-                    type="button"
-                  >
-                    {demoOpen ? t("hideDemoScripts") : t("demoScripts")}
-                  </button>
-                  {demoOpen ? (
-                    <select
-                      className={`${FIELD} mt-2`}
-                      disabled={!locked}
-                      defaultValue=""
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        e.target.value = "";
-                        const script = demoScripts.find((s) => s.id === id);
-                        if (!script) return;
-                        setTranscripts((prev) => [
-                          ...prev,
-                          {
-                            id: `${Date.now()}-demo`,
-                            text: script.text,
-                            at: Date.now(),
-                          },
-                        ]);
-                        setWriteError(null);
-                      }}
-                    >
-                      <option value="">{t("loadDemoTranscript")}</option>
-                      {demoScripts.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : null}
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    {t("voiceNotes")} ({transcripts.length})
-                  </p>
-                  {transcripts.length === 0 ? (
-                    <p className="text-sm text-slate-400">
-                      No voice notes yet.
-                    </p>
-                  ) : (
-                    <ol className="space-y-2">
-                      {transcripts.map((item, index) => (
-                        <li
-                          key={item.id}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-3"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-xs uppercase tracking-wide text-slate-500">
-                              Note {index + 1}
-                            </p>
-                            <button
-                              className="min-h-11 min-w-11 text-xs text-red-600"
-                              onClick={() => removeTranscript(item.id)}
-                              type="button"
-                            >
-                              {t("remove")}
-                            </button>
-                          </div>
-                          <p className="mt-1 break-words text-sm text-slate-900">
-                            {item.text}
-                          </p>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                  <button
-                    className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-clinical-500 px-4 text-sm font-semibold text-white disabled:opacity-60"
-                    disabled={!locked || parsing || transcripts.length === 0}
-                    onClick={() => void parseForReview()}
-                    type="button"
-                  >
-                    {parsing ? t("preparing") : t("rxStepReview")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <label className={LABEL}>
-                  Diagnoses (one per line)
-                  <textarea
-                    className={`${AREA} min-h-20`}
-                    disabled={!locked}
-                    onChange={(e) =>
-                      setTextForm((f) => ({
-                        ...f,
-                        diagnoses: textToLines(e.target.value),
-                      }))
-                    }
-                    value={linesToText(textForm.diagnoses)}
-                  />
-                </label>
-                <label className={LABEL}>
-                  Symptoms (one per line)
-                  <textarea
-                    className={AREA}
-                    disabled={!locked}
-                    onChange={(e) =>
-                      setTextForm((f) => ({
-                        ...f,
-                        symptoms: textToLines(e.target.value),
-                      }))
-                    }
-                    value={linesToText(textForm.symptoms)}
-                  />
-                </label>
-                <label className={LABEL}>
-                  Clinical observations (one per line)
-                  <textarea
-                    className={AREA}
-                    disabled={!locked}
-                    onChange={(e) =>
-                      setTextForm((f) => ({
-                        ...f,
-                        clinical_observations: textToLines(e.target.value),
-                      }))
-                    }
-                    value={linesToText(textForm.clinical_observations)}
-                  />
-                </label>
-                <MedicationsEditor
-                  disabled={!locked}
-                  medications={textForm.medications}
-                  onChange={(medications) =>
-                    setTextForm((f) => ({ ...f, medications }))
-                  }
-                />
-                <button
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-clinical-500 px-4 text-sm font-semibold text-white disabled:opacity-60"
-                  disabled={!locked || !draftHasContent(textForm)}
-                  onClick={textToReview}
-                  type="button"
-                >
-                  {t("rxStepReview")}
-                </button>
-              </div>
-            )}
+            <button
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-clinical-500 px-4 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={!locked || parsing || !captureNote.trim()}
+              onClick={() => void parseForReview()}
+              type="button"
+            >
+              {parsing ? t("preparing") : t("rxStepReview")}
+            </button>
           </div>
         ) : null}
 

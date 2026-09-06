@@ -55,6 +55,14 @@ Credentials live in private `share\SHARE_PACK.md` — send the APK alone; send P
 | **Neha Shah** | 9876512006 | GP-2006 | MRN / audit security |
 | **Rohit Jain** | 9876512007 | — | Clean slate for live mic |
 | **Anjali Rao** | 9876512008 | GP-2008 | Billing ~₹1,850 due + pay QR |
+| **Aarav Sharma** | 9876512009 | GP-2009 | Pediatric fever (age 6) |
+| **Deepak Nair** | 9876512010 | GP-2010 | Asthma — inhalers + SpO2 |
+| **Mohan Lal** | 9876512011 | GP-2011 | Acute gastroenteritis |
+| **Harish Gupta** | 9876512012 | GP-2012 | Post-MI / CAD follow-up |
+| **Geeta Joshi** | 9876512013 | GP-2013 | Fully settled (₹0 due) |
+| **Shalini Menon** | 9876512014 | GP-2014 | Anxiety / insomnia counselling |
+
+**Full directory:** [`DEMO_PATIENTS.md`](DEMO_PATIENTS.md)
 
 ---
 

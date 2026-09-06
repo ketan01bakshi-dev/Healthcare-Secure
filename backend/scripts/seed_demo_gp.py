@@ -240,7 +240,49 @@ def seed(db) -> list[dict[str, str]]:
             "name": "Anjali Rao",
             "phone": "9876512008",
             "mrn": "GP-2008",
-            "label": "[BILLING] Amount due ~INR 1,850 — Show pay QR (receptionist 1111)",
+            "label": "[BILLING] Amount due ~INR 1,850 — Show pay QR (receptionist)",
+        },
+        {
+            "key": "ped",
+            "name": "Aarav Sharma",
+            "phone": "9876512009",
+            "mrn": "GP-2009",
+            "label": "[PEDIATRIC] Age 6 — fever, pediatric vitals ranges, weight/height",
+        },
+        {
+            "key": "asthma",
+            "name": "Deepak Nair",
+            "phone": "9876512010",
+            "mrn": "GP-2010",
+            "label": "[ASTHMA] Mild persistent asthma — inhaler Rx + SpO2 trend",
+        },
+        {
+            "key": "age",
+            "name": "Mohan Lal",
+            "phone": "9876512011",
+            "mrn": "GP-2011",
+            "label": "[AGE] Acute gastroenteritis — ORS + antiemetic Rx",
+        },
+        {
+            "key": "cad",
+            "name": "Harish Gupta",
+            "phone": "9876512012",
+            "mrn": "GP-2012",
+            "label": "[CAD] Post-MI follow-up — antiplatelet, statin, BP/HR trends",
+        },
+        {
+            "key": "paid",
+            "name": "Geeta Joshi",
+            "phone": "9876512013",
+            "mrn": "GP-2013",
+            "label": "[PAID] Fully settled ledger (INR 0 due) — contrast with Anjali billing",
+        },
+        {
+            "key": "anx",
+            "name": "Shalini Menon",
+            "phone": "9876512014",
+            "mrn": "GP-2014",
+            "label": "[MENTAL HEALTH] Anxiety / insomnia counselling + short Rx",
         },
     ]
 
@@ -652,6 +694,425 @@ def seed(db) -> list[dict[str, str]]:
         )
     )
 
+    # --- Aarav Sharma — Pediatric fever ---
+    _, blind_ped, _ = blinds["ped"]
+    when = now - timedelta(hours=5)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_ped,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "98/60",
+                    "systolic": "98",
+                    "diastolic": "60",
+                    "pulse": "110",
+                    "temperature": "101.2",
+                    "spo2": "98",
+                    "weight": "18.5",
+                    "height": "112",
+                    "respiratory_rate": "24",
+                },
+                "diagnostic_notes": "Fever 2 days — mother accompanying",
+                "age_years": 6,
+                "clinical_observations": [
+                    "temp=101.2 F",
+                    "weight=18.5 kg",
+                    "age=6y",
+                ],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": ["fever", "runny nose"],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(hours=3)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_ped,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": "City General Clinic",
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": ["fever", "mild cough", "runny nose"],
+                "clinical_observations": ["Throat mildly congested", "Chest clear", "No rash"],
+                "diagnoses": ["Viral fever — pediatric"],
+                "medications": [
+                    {
+                        "name": "Paracetamol syrup",
+                        "dosage": "5 ml (250 mg/5 ml)",
+                        "frequency": "TDS SOS fever",
+                        "duration": "3 days",
+                    }
+                ],
+                "advice": "Hydration; review if fever >3 days",
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
+    # --- Deepak Nair — Asthma ---
+    _, blind_asthma, _ = blinds["asthma"]
+    for i, (spo2, note) in enumerate(
+        [
+            ("97", "Mild wheeze — controlled"),
+            ("96", "Seasonal trigger — increased inhaler use"),
+            ("95", "Acute mild exacerbation"),
+        ]
+    ):
+        when = now - timedelta(days=21 - i * 7, hours=2)
+        iso, disp = _stamp(when)
+        db.add(
+            _rec(
+                blind_asthma,
+                {
+                    "type": "vitals",
+                    "vitals": {
+                        "blood_pressure": "122/78",
+                        "systolic": "122",
+                        "diastolic": "78",
+                        "pulse": str(84 + i * 4),
+                        "temperature": "98.4",
+                        "spo2": spo2,
+                        "weight": "72",
+                        "height": "175",
+                        "respiratory_rate": str(18 + i * 2),
+                    },
+                    "diagnostic_notes": note,
+                    "age_years": 34,
+                    "clinical_observations": [f"SpO2={spo2}%", note],
+                    "diagnoses": [],
+                    "medications": [],
+                    "symptoms": ["wheeze", "dyspnea on exertion"] if i >= 1 else [],
+                    "entered_by": STAFF,
+                    "entered_at": iso,
+                    "entered_at_display": disp,
+                },
+                when,
+            )
+        )
+    when = now - timedelta(days=2)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_asthma,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": "City General Clinic",
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": ["wheeze", "nocturnal cough"],
+                "clinical_observations": ["Bilateral rhonchi", "SpO2 95%"],
+                "diagnoses": ["Mild persistent asthma — exacerbation"],
+                "medications": [
+                    {
+                        "name": "Budesonide-Formoterol inhaler",
+                        "dosage": "200/6 mcg",
+                        "frequency": "2 puffs BD",
+                        "duration": "30 days",
+                    },
+                    {
+                        "name": "Salbutamol inhaler",
+                        "dosage": "100 mcg",
+                        "frequency": "2 puffs SOS",
+                        "duration": "30 days",
+                    },
+                ],
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
+    # --- Mohan Lal — AGE ---
+    _, blind_age, _ = blinds["age"]
+    when = now - timedelta(hours=7)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_age,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "110/70",
+                    "systolic": "110",
+                    "diastolic": "70",
+                    "pulse": "96",
+                    "temperature": "99.1",
+                    "spo2": "98",
+                    "weight": "68",
+                    "height": "168",
+                },
+                "diagnostic_notes": "Diarrhoea and vomiting overnight",
+                "age_years": 45,
+                "clinical_observations": ["mild dehydration", "pulse=96"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": ["vomiting", "loose stools"],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(hours=5)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_age,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": "City General Clinic",
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": ["vomiting", "watery diarrhoea x 1 day"],
+                "clinical_observations": ["Soft abdomen", "No blood in stool"],
+                "diagnoses": ["Acute gastroenteritis"],
+                "medications": [
+                    {
+                        "name": "ORS",
+                        "dosage": "1 sachet in 1 L water",
+                        "frequency": "as needed",
+                        "duration": "2 days",
+                    },
+                    {
+                        "name": "Ondansetron",
+                        "dosage": "4 mg",
+                        "frequency": "TDS SOS",
+                        "duration": "2 days",
+                    },
+                    {
+                        "name": "Racecadotril",
+                        "dosage": "100 mg",
+                        "frequency": "TDS",
+                        "duration": "3 days",
+                    },
+                ],
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
+    # --- Harish Gupta — CAD ---
+    _, blind_cad, _ = blinds["cad"]
+    for i, (sys, dia, hr, note) in enumerate(
+        [
+            (128, 78, 72, "Stable post-MI — on dual therapy"),
+            (132, 82, 76, "Mild BP rise — review"),
+            (126, 80, 70, "Well controlled"),
+        ]
+    ):
+        when = now - timedelta(days=45 - i * 15, hours=2)
+        iso, disp = _stamp(when)
+        db.add(
+            _rec(
+                blind_cad,
+                {
+                    "type": "vitals",
+                    "vitals": {
+                        "blood_pressure": f"{sys}/{dia}",
+                        "systolic": str(sys),
+                        "diastolic": str(dia),
+                        "pulse": str(hr),
+                        "temperature": "98.2",
+                        "spo2": "98",
+                        "weight": "74",
+                        "height": "172",
+                    },
+                    "diagnostic_notes": note,
+                    "age_years": 61,
+                    "clinical_observations": [f"BP={sys}/{dia}", f"HR={hr}", note],
+                    "diagnoses": [],
+                    "medications": [],
+                    "symptoms": [],
+                    "entered_by": STAFF,
+                    "entered_at": iso,
+                    "entered_at_display": disp,
+                },
+                when,
+            )
+        )
+    when = now - timedelta(days=10)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_cad,
+            {
+                "type": "lab_result",
+                "test_name": "LDL cholesterol",
+                "value": "88",
+                "unit": "mg/dL",
+                "reference_range": "<70 (very high risk)",
+                "collected_at": (now - timedelta(days=12)).date().isoformat(),
+                "clinical_observations": ["LDL=88"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": [],
+                "entered_by": LAB,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(days=7)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_cad,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": "City General Clinic",
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": [],
+                "clinical_observations": ["Post anterior wall MI (6 months)", "No angina"],
+                "diagnoses": ["IHD — post MI follow-up", "Dyslipidemia"],
+                "medications": [
+                    {
+                        "name": "Aspirin",
+                        "dosage": "75 mg",
+                        "frequency": "OD",
+                        "duration": "lifelong",
+                    },
+                    {
+                        "name": "Clopidogrel",
+                        "dosage": "75 mg",
+                        "frequency": "OD",
+                        "duration": "12 months post-MI",
+                    },
+                    {
+                        "name": "Atorvastatin",
+                        "dosage": "40 mg",
+                        "frequency": "OD night",
+                        "duration": "lifelong",
+                    },
+                    {
+                        "name": "Metoprolol",
+                        "dosage": "25 mg",
+                        "frequency": "BD",
+                        "duration": "ongoing",
+                    },
+                ],
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
+    # --- Geeta Joshi — fully paid ---
+    _, blind_gpaid, _ = blinds["paid"]
+    when = now - timedelta(days=2)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_gpaid,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "118/76",
+                    "systolic": "118",
+                    "diastolic": "76",
+                    "pulse": "74",
+                    "temperature": "98.4",
+                    "spo2": "99",
+                    "weight": "56",
+                    "height": "158",
+                },
+                "diagnostic_notes": "Wellness visit — bill settled",
+                "age_years": 40,
+                "clinical_observations": ["BP=118/76"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": [],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+
+    # --- Shalini Menon — anxiety / insomnia ---
+    _, blind_anx, _ = blinds["anx"]
+    when = now - timedelta(days=3)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_anx,
+            {
+                "type": "vitals",
+                "vitals": {
+                    "blood_pressure": "126/82",
+                    "systolic": "126",
+                    "diastolic": "82",
+                    "pulse": "90",
+                    "temperature": "98.4",
+                    "spo2": "99",
+                    "weight": "54",
+                    "height": "160",
+                },
+                "diagnostic_notes": "Stress-related insomnia",
+                "age_years": 29,
+                "clinical_observations": ["pulse=90", "anxious affect"],
+                "diagnoses": [],
+                "medications": [],
+                "symptoms": ["insomnia", "palpitations"],
+                "entered_by": STAFF,
+                "entered_at": iso,
+                "entered_at_display": disp,
+            },
+            when,
+        )
+    )
+    when = now - timedelta(days=1)
+    iso, disp = _stamp(when)
+    db.add(
+        _rec(
+            blind_anx,
+            {
+                "type": "prescription",
+                "doctor_name": DOCTOR["display_name"],
+                "clinic_name": "City General Clinic",
+                "issued_at": iso,
+                "issued_at_display": disp,
+                "transcript_count": 0,
+                "symptoms": ["difficulty falling asleep", "work stress", "palpitations"],
+                "clinical_observations": ["ECG normal", "Thyroid previously normal"],
+                "diagnoses": ["Generalised anxiety — mild", "Insomnia"],
+                "medications": [
+                    {
+                        "name": "Melatonin",
+                        "dosage": "3 mg",
+                        "frequency": "OD at bedtime",
+                        "duration": "14 days",
+                    }
+                ],
+                "advice": "Sleep hygiene counselling; review in 2 weeks; consider CBT if persists",
+                "signed_by": DOCTOR,
+            },
+            when,
+        )
+    )
+
     # --- Analytics volume ---
     analytics_rx = [
         (
@@ -790,6 +1251,41 @@ def seed(db) -> list[dict[str, str]]:
         created_by=STAFF["display_name"],
     )
     add_appt(
+        key="ped",
+        display="Aarav Sharma",
+        when=now.replace(hour=13, minute=0, second=0, microsecond=0),
+        reason="Pediatric fever",
+        created_by=STAFF["display_name"],
+    )
+    add_appt(
+        key="asthma",
+        display="Deepak Nair",
+        when=now.replace(hour=13, minute=30, second=0, microsecond=0),
+        reason="Asthma review",
+        created_by=STAFF["display_name"],
+    )
+    add_appt(
+        key="age",
+        display="Mohan Lal",
+        when=now.replace(hour=14, minute=0, second=0, microsecond=0),
+        reason="AGE / dehydration",
+        created_by=RECEPTION["display_name"],
+    )
+    add_appt(
+        key="cad",
+        display="Harish Gupta",
+        when=now.replace(hour=14, minute=30, second=0, microsecond=0),
+        reason="CAD / post-MI follow-up",
+        created_by=DOCTOR["display_name"],
+    )
+    add_appt(
+        key="anx",
+        display="Shalini Menon",
+        when=now.replace(hour=15, minute=0, second=0, microsecond=0),
+        reason="Anxiety / sleep counselling",
+        created_by=STAFF["display_name"],
+    )
+    add_appt(
         key="thy",
         display="Vikram Singh",
         when=(now + timedelta(days=7)).replace(
@@ -830,6 +1326,14 @@ def seed(db) -> list[dict[str, str]]:
     add_bill("bill", "charge", 600, "Lab panel", 1, RECEPTION)
     add_bill("bill", "payment", 550, "Partial UPI", 0.5, RECEPTION)
     add_bill("bill", "charge", 400, "Today's consult", 0.03, RECEPTION)
+    add_bill("ped", "charge", 400, "Pediatric consult", 0.05, RECEPTION)
+    add_bill("asthma", "charge", 700, "Asthma review + peak flow", 0.08, RECEPTION)
+    add_bill("age", "charge", 500, "AGE consult", 0.1, RECEPTION)
+    add_bill("cad", "charge", 900, "CAD follow-up", 7, RECEPTION)
+    add_bill("cad", "payment", 900, "Full UPI", 6.5, RECEPTION)
+    add_bill("paid", "charge", 600, "Wellness consult", 3, RECEPTION)
+    add_bill("paid", "payment", 600, "Full settlement", 2.5, RECEPTION)
+    add_bill("anx", "charge", 650, "Counselling visit", 1, RECEPTION)
 
     # --- Roster + queue ---
     name_by_key = {p["key"]: p["name"] for p in patients}
@@ -851,6 +1355,9 @@ def seed(db) -> list[dict[str, str]]:
         ("htn", "HTN priority", 9),
         ("urti", "URTI walk-in", 9),
         ("bill", "Billing demo", 9),
+        ("ped", "Pediatric fever", 9),
+        ("age", "AGE walk-in", 10),
+        ("asthma", "Asthma review", 10),
     ]:
         _, blind, _ = blinds[key]
         db.add(
@@ -911,19 +1418,23 @@ def main() -> int:
     print(f"Clinic: {CLINIC}")
     print()
     print("Sign in as (City General Clinic):")
-    print("  Dr Rajesh Kumar     (doctor)         PIN 2468")
-    print("  Priya Sharma        (staff)          PIN 1357")
-    print("  Front Desk          (receptionist)   PIN 1111")
-    print("  Lab Desk            (lab)            PIN 9999")
+    print("  Dr Rajesh Kumar     (doctor)         PIN 3641")
+    print("  Priya Sharma        (staff)          PIN 4582")
+    print("  Front Desk          (receptionist)   PIN 5193")
+    print("  Lab Desk            (lab)            PIN 6827")
     print()
-    print("Clinic unlock: City General Clinic / clinicpass")
+    print("Clinic unlock: City General Clinic / ClinicShare2026")
+    print()
+    print("Full patient directory: docs\\DEMO_PATIENTS.md")
     print()
     for row in cheat:
         print(f"  {row['name']}")
         print(f"    Mobile: {row['phone']}   MRN: {row['mrn']}")
-        print(f"    Showcase: {row['use']}")
+        use = row["use"].encode("ascii", errors="replace").decode("ascii")
+        print(f"    Showcase: {use}")
         print()
     print("Pitch script: docs\\DEMO_GP.md")
+    print("Full patient directory: docs\\DEMO_PATIENTS.md")
     print("=" * 72)
     return 0
 

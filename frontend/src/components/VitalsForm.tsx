@@ -13,6 +13,7 @@ import {
   hasAnyVitalOrNotes,
 } from "@/lib/vitalsValidation";
 import CollapsibleSection from "@/components/CollapsibleSection";
+import ThemedSelect from "@/components/ThemedSelect";
 import { usePatient } from "@/context/PatientContext";
 import { useI18n } from "@/lib/i18n";
 
@@ -209,16 +210,16 @@ export default function VitalsForm() {
       <form className="grid gap-3 sm:grid-cols-2" onSubmit={onSubmit}>
         <label className="block text-xs uppercase tracking-wide text-slate-500 sm:col-span-2">
           {t("tempUnit")}
-          <select
+          <ThemedSelect
             aria-label={t("tempUnit")}
-            className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
             disabled={busy}
-            onChange={(e) => setUnit(e.target.value as TempUnit)}
+            onChange={(v) => setUnit(v as TempUnit)}
+            options={[
+              { value: "F", label: t("tempFahrenheit") },
+              { value: "C", label: t("tempCelsius") },
+            ]}
             value={tempUnit}
-          >
-            <option value="F">{t("tempFahrenheit")}</option>
-            <option value="C">{t("tempCelsius")}</option>
-          </select>
+          />
         </label>
         {FIELD_KEYS.map((key) => {
           const err = errors[key];

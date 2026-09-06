@@ -56,8 +56,7 @@ a {
 .brand img {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: #000;
+  object-fit: contain;
 }
 
 nav {
@@ -248,4 +247,174 @@ footer {
 
 footer p {
   margin: 0;
+}
+
+/* —— Pricing page —— */
+.hero-compact {
+  padding-bottom: 2rem;
+}
+
+.pricing-grid {
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .pricing-grid {
+    grid-template-columns: repeat(3, 1fr);
+    align-items: stretch;
+  }
+}
+
+.price-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.price-card-featured {
+  border-color: var(--teal);
+  box-shadow: 0 4px 20px rgba(42, 111, 106, 0.12);
+}
+
+.plan-badge {
+  display: inline-block;
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin: 0 0 0.5rem;
+}
+
+.plan-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--teal);
+  font-weight: 650;
+  margin: 0 0 0.25rem;
+}
+
+.price-card h2 {
+  font-size: 1.25rem;
+  margin: 0 0 0.75rem;
+}
+
+.price {
+  margin: 0 0 0.25rem;
+}
+
+.price .amount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-family: Georgia, serif;
+}
+
+.price .period {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.price-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+
+.plan-features {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  flex: 1;
+}
+
+.plan-features li {
+  margin: 0.35rem 0;
+}
+
+.plan-best {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  margin: 0 0 1rem;
+}
+
+.btn-block {
+  display: block;
+  text-align: center;
+  margin-top: auto;
+}
+
+.faq dl {
+  margin: 0;
+}
+
+.faq dt {
+  font-weight: 650;
+  margin: 1rem 0 0.25rem;
+}
+
+.faq dt:first-child {
+  margin-top: 0;
+}
+
+.faq dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.cta-band {
+  text-align: center;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.cta-band h2 {
+  margin-bottom: 0.5rem;
+}
+
+.cta-band p {
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+
+.cta-row-center {
+  justify-content: center;
+}
+
+.value-band .grid-3 article {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+}
+
+.value-band h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--teal-dark);
+}
+
+.value-band p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.cta-fine {
+  margin-top: 0.75rem !important;
 }

@@ -13,7 +13,7 @@ from app.services.presigned_url import (
 
 def build_expiring_prescription_download_url(pdf: bytes | io.BytesIO) -> dict[str, Any]:
     """
-    Mint a cryptographically signed download URL that expires in exactly 24 hours.
+    Mint a cryptographically signed download URL that expires in exactly 72 hours.
 
     The mobile / web client shares this URL via the device share sheet or clipboard.
     No carrier SMS gateway is used.

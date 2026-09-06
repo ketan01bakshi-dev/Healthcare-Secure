@@ -31,9 +31,9 @@ This is a **clinic staff** application for recording visits, vitals, lab results
 
 ## Contact
 
-Replace with your clinic contact email before publishing on Play Store:
+Product / privacy enquiries: **privacy@aarogyaoneconnect.in**
 
-`privacy@your-clinic.example`
+Public URL for Play Console: **https://www.aarogyaoneconnect.in/privacy.html**
 
 ## Changes
 

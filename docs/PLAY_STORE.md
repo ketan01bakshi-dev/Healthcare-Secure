@@ -8,7 +8,7 @@ Use **Play Internal testing** when you want more than a handful of doctors: only
 keytool -genkey -v -keystore healthcare-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias healthcare
 ```
 
-Add `frontend/android/key.properties` (gitignored):
+Copy `frontend/android/key.properties.example` → `frontend/android/key.properties` (gitignored) and fill in paths/passwords:
 
 ```
 storePassword=...
@@ -17,7 +17,7 @@ keyAlias=healthcare
 storeFile=C:/path/to/healthcare-upload.jks
 ```
 
-Ensure `frontend/android/app/build.gradle` has `signingConfigs.release` reading `key.properties` (Capacitor Android Studio wizard can add this).
+Until `key.properties` exists, share APK builds use the **debug keystore** but **release** network hardening (HTTPS-only, no backup).
 
 ## B. Build the AAB
 

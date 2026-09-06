@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import CollapsibleSection from "@/components/CollapsibleSection";
+import ClinicalNoteInput from "@/components/ClinicalNoteInput";
+import ThemedSelect from "@/components/ThemedSelect";
 import { usePatient } from "@/context/PatientContext";
 import { printAttachmentBlob } from "@/lib/fileActions";
 import {
@@ -85,11 +87,16 @@ export default function ForwardCaseHistory() {
   const buildMessage = useCallback(
     (url: string) => {
       const who = recipientName.trim() || "Doctor";
-      const from = me?.display_name || "Clinic";
+      const fromRaw = me?.display_name || "Clinic";
+      const from = /^clinic$/i.test(fromRaw.trim())
+        ? fromRaw.trim()
+        : /^(dr\.?|doctor)\s+/i.test(fromRaw.trim())
+          ? fromRaw.trim()
+          : `Dr. ${fromRaw.trim()}`;
       return (
-        `Clinical referral for ${who} from Dr. ${from}` +
+        `Clinical referral for ${who} from ${from}` +
         (patientName ? ` (patient: ${patientName})` : "") +
-        `:\n${url}\n\nLink works for 24 hours. Verify against the chart.`
+        `:\n${url}\n\nLink works for 72 hours. Verify against the chart.`
       );
     },
     [me?.display_name, patientName, recipientName],
@@ -304,15 +311,17 @@ export default function ForwardCaseHistory() {
         {tabBtn("colleague", t("forwardColleague"))}
       </div>
 
-      <label className="mt-3 block text-xs font-medium text-slate-600">
-        {t("forwardNote")}
-        <textarea
-          className={`${INPUT} min-h-20`}
-          onChange={(e) => setNote(e.target.value)}
+      <div className="mt-3">
+        <ClinicalNoteInput
+          disabled={busy}
+          id="forward-clinical-note"
+          label={t("forwardNote")}
+          minRows={4}
+          onChange={setNote}
           placeholder={t("forwardNotePlaceholder")}
           value={note}
         />
-      </label>
+      </div>
 
       {mode === "external" ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -385,17 +394,15 @@ export default function ForwardCaseHistory() {
           ) : (
             <label className="block text-xs font-medium text-slate-600">
               {t("forwardSelectDoctor")}
-              <select
-                className={INPUT}
-                onChange={(e) => setToUserId(e.target.value)}
+              <ThemedSelect
+                aria-label={t("forwardSelectDoctor")}
+                onChange={setToUserId}
+                options={colleagues.map((u) => ({
+                  value: u.user_id,
+                  label: u.display_name,
+                }))}
                 value={toUserId}
-              >
-                {colleagues.map((u) => (
-                  <option key={u.user_id} value={u.user_id}>
-                    {u.display_name}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
           )}
           <button

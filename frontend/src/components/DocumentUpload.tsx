@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 
 import CollapsibleSection from "@/components/CollapsibleSection";
 import PatientAttachments from "@/components/PatientAttachments";
+import ThemedSelect from "@/components/ThemedSelect";
 import { apiFetch } from "@/lib/doctorSession";
 import { useI18n } from "@/lib/i18n";
 import { usePatient } from "@/context/PatientContext";
@@ -75,31 +76,34 @@ export default function DocumentUpload({ onUploaded, labOnly = false }: Props) {
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <label className="text-xs uppercase tracking-wide text-clinical-100/55">
           {t("documentType")}
-          <select
-            className="mt-1 min-h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
+          <ThemedSelect
+            aria-label={t("documentType")}
             disabled={!locked || busy || labOnly}
-            onChange={(e) =>
+            onChange={(v) =>
               setKind(
-                e.target.value as
+                v as
                   | "scanned_prescription"
                   | "diagnostic_report"
                   | "other",
               )
             }
+            options={
+              labOnly
+                ? [{ value: "diagnostic_report", label: t("docKindDiagnostic") }]
+                : [
+                    {
+                      value: "scanned_prescription",
+                      label: t("docKindPrescription"),
+                    },
+                    {
+                      value: "diagnostic_report",
+                      label: t("docKindDiagnostic"),
+                    },
+                    { value: "other", label: t("docKindOther") },
+                  ]
+            }
             value={kind}
-          >
-            {labOnly ? (
-              <option value="diagnostic_report">{t("docKindDiagnostic")}</option>
-            ) : (
-              <>
-                <option value="scanned_prescription">
-                  {t("docKindPrescription")}
-                </option>
-                <option value="diagnostic_report">{t("docKindDiagnostic")}</option>
-                <option value="other">{t("docKindOther")}</option>
-              </>
-            )}
-          </select>
+          />
         </label>
 
         <label className="text-xs uppercase tracking-wide text-clinical-100/55">

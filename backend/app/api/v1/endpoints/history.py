@@ -309,6 +309,13 @@ class ClinicalSearchMatch(BaseModel):
     record_date: str | None = None
 
 
+def _entered_by_user_id(data: dict[str, Any]) -> str:
+    actor = data.get("entered_by")
+    if isinstance(actor, dict):
+        return str(actor.get("user_id") or "").strip()
+    return ""
+
+
 @router.get("/clinical-search", response_model=list[ClinicalSearchMatch])
 def clinical_search(
     q: str,
@@ -373,9 +380,12 @@ def clinical_search(
         data: dict[str, Any] = dict(record.encounter_data or {})
         rec_type = data.get("type", "")
 
-        # Lab users: only their own uploads
-        if session.role == "lab" and rec_type not in ("document", "lab_result"):
-            continue
+        # Lab users: only their own uploaded documents / lab results
+        if session.role == "lab":
+            if rec_type not in ("document", "lab_result"):
+                continue
+            if _entered_by_user_id(data) != session.user_id:
+                continue
 
         pid = record.blind_patient_id
         pat = pid_to_patient.get(pid)
@@ -1892,13 +1902,30 @@ def _referral_snapshot(summary: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_referral_note(note: str, *, clinic_id: str | None = None) -> str:
+    """Ensure referral/handoff notes are English clinical text when Hindi is present."""
+    text = (note or "").strip()
+    if not text:
+        return ""
+    from app.services.transcription import transcript_needs_english_translation
+
+    if not transcript_needs_english_translation(text):
+        return text
+    try:
+        from app.services.lml_parser import translate_clinical_transcript_to_english
+
+        return translate_clinical_transcript_to_english(text, clinic_id=clinic_id)
+    except Exception:  # noqa: BLE001
+        return text
+
+
 @router.post("/referral-pack")
 def post_referral_pack(
     body: ReferralPackRequest,
     session: DoctorOnly,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Build a referral PDF from the case summary and mint a 24h download URL."""
+    """Build a referral PDF from the case summary and mint a 72h download URL."""
     from app.api.v1.helpers.delivery import build_expiring_prescription_download_url
     from app.services.case_summary import build_case_summary
     from app.services.tenancy import branding_for
@@ -1914,6 +1941,7 @@ def post_referral_pack(
         fallback_name=body.patient_display_name,
     )
     brand = branding_for(session.clinic_id)
+    note = _normalize_referral_note(body.note or "", clinic_id=session.clinic_id)
     pdf_buf = generate_referral_pdf(
         summary,
         clinic_name=brand["clinic_name"],
@@ -1922,7 +1950,7 @@ def post_referral_pack(
         referring_doctor=session.display_name,
         patient_display_name=display_name,
         clinic_mrn=clinic_mrn,
-        note=(body.note or "").strip(),
+        note=note,
         recipient_name=(body.recipient_name or "").strip(),
     )
     pdf_bytes = pdf_buf.getvalue()
@@ -1973,6 +2001,7 @@ def post_referral_handoff(
         blind_patient_id=blind,
         fallback_name=body.patient_display_name,
     )
+    note = _normalize_referral_note(body.note or "", clinic_id=session.clinic_id)
     raw = (body.raw_identifier or "").strip()
     # Prefer MRN-shaped identifier for re-lock when available
     lock_raw = f"mrn|{clinic_mrn}" if clinic_mrn else raw
@@ -1984,7 +2013,7 @@ def post_referral_handoff(
         "from_display_name": session.display_name,
         "to_user_id": target.user_id,
         "to_display_name": target.display_name,
-        "note": (body.note or "").strip()[:1200],
+        "note": note[:1200],
         "patient_display_name": display_name,
         "clinic_mrn": clinic_mrn,
         "raw_identifier": lock_raw,
@@ -1993,7 +2022,7 @@ def post_referral_handoff(
         "created_at": now.isoformat(),
         "clinical_observations": [
             f"Case handoff to {target.display_name}"
-            + (f": {(body.note or '').strip()[:200]}" if (body.note or "").strip() else "")
+            + (f": {note[:200]}" if note else "")
         ],
         "diagnoses": [],
         "medications": [],

@@ -38,7 +38,7 @@ _CHUNK_SIZE = 64 * 1024
 
 
 class PrescriptionShareLinkRequest(BaseModel):
-    """Mint a 24h pre-signed download URL for an in-memory PDF (base64)."""
+    """Mint a 72h pre-signed download URL for an in-memory PDF (base64)."""
 
     pdf_base64: str = Field(..., min_length=1, description="PDF bytes as base64")
 
@@ -127,13 +127,15 @@ async def transcribe_prescription_audio(
     db: Session = Depends(get_db),
     audio: UploadFile = File(..., description="Recorded prescription audio"),
     language: str = Form(
-        "en",
-        description="Spoken language: en (English) or hi (Hindi→English)",
+        "auto",
+        description="Spoken language: auto, en (English), or hi (Hindi→English)",
     ),
 ) -> dict[str, str | int]:
-    """Accept prescription audio and return an English Whisper transcript."""
+    """Accept clinical audio and return an English Whisper transcript."""
     try:
-        source_language = normalize_speak_language(language)
+        from app.services.transcription import normalize_input_language
+
+        input_language = normalize_input_language(language)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -176,7 +178,7 @@ async def transcribe_prescription_audio(
             transcript = await asyncio.to_thread(
                 transcribe_audio_buffer,
                 memory_buffer,
-                source_language=source_language,
+                source_language=input_language,
                 clinic_id=auth.clinic_id,
                 db=None,
                 alias_map=alias_map,
@@ -211,12 +213,12 @@ async def transcribe_prescription_audio(
             "content_type": content_type,
             "bytes_received": total,
             "provider": settings.whisper_provider,
-            "source_language": source_language,
+            "source_language": input_language,
             "output_language": "en",
             "transcript": transcript,
             "message": (
                 "Hindi translated to English"
-                if source_language == "hi"
+                if input_language == "hi"
                 else "Transcription complete"
             ),
         }
@@ -251,40 +253,6 @@ def parse_prescription(
             detail=str(exc),
         ) from exc
     except Exception as exc:  # noqa: BLE001
-        # #region agent log
-        try:
-            import json
-            import time
-            from app.services.lml_parser import _provider, _resolve_model
-
-            _payload = json.dumps(
-                {
-                    "sessionId": "bda137",
-                    "hypothesisId": "A",
-                    "location": "prescription.py:parse",
-                    "message": "clinical_parse_failed",
-                    "data": {
-                        "provider": _provider(),
-                        "model": _resolve_model(),
-                        "error": str(exc)[:240],
-                    },
-                    "timestamp": int(time.time() * 1000),
-                }
-            ) + "\n"
-            for _p in (
-                r"D:\Agents\Healthcare\debug-bda137.log",
-                "/tmp/debug-bda137.log",
-                "/root/Healthcare-Secure/debug-bda137.log",
-            ):
-                try:
-                    with open(_p, "a", encoding="utf-8") as _f:
-                        _f.write(_payload)
-                    break
-                except Exception:
-                    continue
-        except Exception:
-            pass
-        # #endregion
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Clinical parse failed: {exc}",
@@ -498,7 +466,7 @@ def write_prescription(
 def download_presigned_prescription(
     token: str = Query(..., min_length=10, description="Signed download token"),
 ) -> Response:
-    """Serve an ephemeral PDF when the HMAC token is valid and unexpired (24h)."""
+    """Serve an ephemeral PDF when the HMAC token is valid and unexpired (72h)."""
     try:
         pdf_bytes = resolve_presigned_prescription(token)
     except ValueError:
@@ -523,7 +491,7 @@ def create_prescription_share_link(
     _auth: DoctorOnly,
 ) -> dict[str, object]:
     """
-    Mint a 24h cryptographically signed download URL for the client to share
+    Mint a 72h cryptographically signed download URL for the client to share
     via the device native share sheet or clipboard (no SMS gateway).
     """
     try:

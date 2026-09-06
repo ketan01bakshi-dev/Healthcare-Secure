@@ -1,0 +1,55 @@
+---
+description: All documentation in this repo must be written using Google Gemini. Apply when creating or editing docs, marketing copy, privacy/legal drafts, handbooks, website text, release reports, or any user-facing prose.
+globs:
+  - "docs/**"
+  - "deploy/www/**"
+  - "share/**/*.md"
+  - "**/README.md"
+  - "**/PLAY_STORE.md"
+  - "**/PRIVACY_POLICY.md"
+  - "**/RELEASE_TEST_REPORT.md"
+  - "**/DPA_TEMPLATE.md"
+  - "**/DEMO_*.md"
+  - "**/CLOUD_DEPLOY.md"
+  - "**/RESTART_PRODUCTION_API.md"
+  - "docs/marketing/**"
+alwaysApply: false
+---
+
+# Documentation → Google Gemini (required)
+
+## Model policy
+
+For **all documentation work** in this repository, use **Google Gemini** as the AI model.
+
+This includes — but is not limited to:
+
+- Markdown files under `docs/`, `share/`, and repo READMEs
+- Marketing and product copy (`deploy/www/`, `docs/marketing/`)
+- Privacy notices, DPA templates, Play Store copy, release reports
+- Demo scripts, handbooks, deployment runbooks, and internal specs meant for humans
+- Comments or sections whose primary purpose is explanatory prose (not code)
+
+## When you are not on Gemini
+
+If the active Cursor chat model is **not** Google Gemini:
+
+1. **Do not** draft or substantially rewrite documentation in this session.
+2. Tell the user: *“Documentation policy requires Google Gemini — please switch the model to Gemini (or start a new Agent chat with Gemini) and re-run this request.”*
+3. You may still fix typos, broken links, or single-line factual corrections if the user explicitly asks for a minimal fix.
+
+## When you are on Gemini
+
+- Write clear, professional documentation suitable for clinic B2B (India market).
+- Prefer concise structure: headings, tables, checklists, step-by-step flows.
+- Keep technical accuracy aligned with the codebase; do not invent features.
+- Match existing tone in `deploy/www/` and `docs/PRIVACY_POLICY.md` where relevant.
+
+## Scope boundary
+
+- **Code implementation** (Python, TypeScript, SQL, configs) does not require Gemini unless the task is primarily documentation.
+- If a task mixes code + docs, use Gemini for all prose sections; code changes may use any model unless the user specifies otherwise.
+
+## User override
+
+If the user explicitly says to use a different model for a specific doc task, follow the user for that task only.

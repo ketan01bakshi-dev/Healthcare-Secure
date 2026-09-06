@@ -197,36 +197,6 @@ def create_upi_qr(
     Returns dict with provider_qr_id, provider_order_id, qr_string, qr_image_url,
     qr_image_base64 (best-effort), expires_at_unix.
     """
-    # #region agent log
-    try:
-        import json as _json
-        from pathlib import Path as _Path
-
-        _Path("/tmp/debug-bbdc54.log").open("a", encoding="utf-8").write(
-            _json.dumps(
-                {
-                    "sessionId": "bbdc54",
-                    "runId": "qr-server",
-                    "hypothesisId": "H1_H2",
-                    "location": "razorpay_client.create_upi_qr:entry",
-                    "message": "create_upi_qr entry",
-                    "data": {
-                        "amount_inr": amount_inr,
-                        "payments_enabled": settings.payments_enabled,
-                        "razorpay_mock": settings.razorpay_mock,
-                        "key_id_set": bool(settings.razorpay_key_id.strip()),
-                        "key_secret_set": bool(settings.razorpay_key_secret.strip()),
-                        "configured": payments_configured(),
-                    },
-                    "timestamp": int(time.time() * 1000),
-                }
-            )
-            + "\n"
-        )
-    except Exception:
-        pass
-    # #endregion
-
     amount_paise = int(round(float(amount_inr) * 100))
     if amount_paise < 100:
         raise RazorpayError("Minimum amount is ₹1.00")
@@ -251,86 +221,14 @@ def create_upi_qr(
             notes=notes,
             close_by_unix=close_by_unix,
         )
-        # #region agent log
-        try:
-            import json as _json
-            from pathlib import Path as _Path
-
-            _Path("/tmp/debug-bbdc54.log").open("a", encoding="utf-8").write(
-                _json.dumps(
-                    {
-                        "sessionId": "bbdc54",
-                        "runId": "qr-server",
-                        "hypothesisId": "H3",
-                        "location": "razorpay_client.create_upi_qr:qr_codes_ok",
-                        "message": "QR Codes API succeeded",
-                        "data": {
-                            "qr_string_len": len(result.get("qr_string") or ""),
-                            "qr_b64_len": len(result.get("qr_image_base64") or ""),
-                        },
-                        "timestamp": int(time.time() * 1000),
-                    }
-                )
-                + "\n"
-            )
-        except Exception:
-            pass
-        # #endregion
         return result
     except RazorpayError as qr_exc:
-        # #region agent log
-        try:
-            import json as _json
-            from pathlib import Path as _Path
-
-            _Path("/tmp/debug-bbdc54.log").open("a", encoding="utf-8").write(
-                _json.dumps(
-                    {
-                        "sessionId": "bbdc54",
-                        "runId": "qr-server",
-                        "hypothesisId": "H3",
-                        "location": "razorpay_client.create_upi_qr:fallback",
-                        "message": "QR Codes failed; trying payment_links",
-                        "data": {"qr_err": str(qr_exc)[:300]},
-                        "timestamp": int(time.time() * 1000),
-                    }
-                )
-                + "\n"
-            )
-        except Exception:
-            pass
-        # #endregion
         result = _create_via_payment_link(
             amount_paise=amount_paise,
             description=description,
             notes=notes,
             close_by_unix=close_by_unix,
         )
-        # #region agent log
-        try:
-            import json as _json
-            from pathlib import Path as _Path
-
-            _Path("/tmp/debug-bbdc54.log").open("a", encoding="utf-8").write(
-                _json.dumps(
-                    {
-                        "sessionId": "bbdc54",
-                        "runId": "qr-server",
-                        "hypothesisId": "H3",
-                        "location": "razorpay_client.create_upi_qr:payment_link_ok",
-                        "message": "Payment link fallback succeeded",
-                        "data": {
-                            "qr_string_len": len(result.get("qr_string") or ""),
-                            "qr_b64_len": len(result.get("qr_image_base64") or ""),
-                        },
-                        "timestamp": int(time.time() * 1000),
-                    }
-                )
-                + "\n"
-            )
-        except Exception:
-            pass
-        # #endregion
         return result
 
 

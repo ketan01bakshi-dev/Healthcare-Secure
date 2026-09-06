@@ -32,3 +32,24 @@ class ClinicSession(Base):
         nullable=False,
         index=True,
     )
+
+
+class ClinicGateTicket(Base):
+    """Persisted clinic-password gate ticket — survives API restart."""
+
+    __tablename__ = "clinic_gate_tickets"
+
+    ticket: Mapped[str] = mapped_column(String(256), primary_key=True)
+    clinic_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="default", index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )

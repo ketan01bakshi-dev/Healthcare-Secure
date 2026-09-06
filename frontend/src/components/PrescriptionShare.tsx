@@ -24,6 +24,14 @@ function canUseNativeShare(): boolean {
   return typeof navigator.share === "function";
 }
 
+/** Avoid "Dr. Dr Name" when display_name already includes a title. */
+function doctorLabelForShare(name: string): string {
+  const n = (name || "").trim() || "Clinic";
+  if (/^clinic$/i.test(n)) return n;
+  if (/^(dr\.?|doctor)\s+/i.test(n)) return n;
+  return `Dr. ${n}`;
+}
+
 function smsHref(phoneDigits: string, body: string): string {
   let digits = phoneDigits.replace(/\D+/g, "");
   // Indian 10-digit mobiles → E.164 for SMS apps.
@@ -78,8 +86,10 @@ export default function PrescriptionShare({
   }, [downloadUrl, pdfBase64]);
 
   const buildMessage = useCallback(
-    (url: string) =>
-      `Your prescription from Dr. ${doctorName}: ${url}\n\nThis link works for 24 hours.`,
+    (url: string) => {
+      const label = doctorLabelForShare(doctorName);
+      return `Your prescription from ${label}: ${url}\n\nThis link works for 72 hours.`;
+    },
     [doctorName],
   );
 
