@@ -59,12 +59,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Placeholder env files for compose config
+        run: |
+          # Real secrets stay on the VPS; Compose only needs the files to exist for `config`.
+          touch backend/.env backend/.env.staging
       - name: Validate production compose
         run: docker compose -f docker-compose.yml config --quiet
       - name: Validate staging compose
-        run: |
-          touch backend/.env.staging
-          docker compose -p healthcare-secure-staging -f docker-compose.staging.yml config --quiet
+        run: docker compose -p healthcare-secure-staging -f docker-compose.staging.yml config --quiet
       - name: Validate image overlay compose
         run: |
           export API_IMAGE=ghcr.io/example/healthcare-api:test
