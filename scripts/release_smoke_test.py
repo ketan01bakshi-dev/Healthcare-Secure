@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 
-API = sys.argv[1] if len(sys.argv) > 1 else "https://api.aarogyaoneconnect.in"
-CLINIC = "Alpha Clinic"
-CLINIC_PW = "ClinicShare2026"
-DOCTOR = "dr_main"
-PIN = "4829"
+API = sys.argv[1] if len(sys.argv) > 1 else os.environ.get(
+    "SMOKE_API_BASE", "https://api.aarogyaoneconnect.in"
+)
+CLINIC = os.environ.get("SMOKE_CLINIC_NAME", "Alpha Clinic")
+CLINIC_PW = os.environ.get("SMOKE_CLINIC_PASSWORD", "ClinicShare2026")
+DOCTOR = os.environ.get("SMOKE_DOCTOR_USER", "dr_main")
+PIN = os.environ.get("SMOKE_DOCTOR_PIN", "4829")
+LAB_USER = os.environ.get("SMOKE_LAB_USER", "lab1")
+LAB_PIN = os.environ.get("SMOKE_LAB_PIN", "7391")
 
 
 def req(method: str, path: str, body: dict | None = None, headers: dict | None = None) -> tuple[int, dict | str]:
@@ -89,7 +94,7 @@ def main() -> int:
     code_l, body_l = req(
         "POST",
         "/api/v1/auth/unlock",
-        {"user_id": "lab1", "pin": "7391", "clinic_id": clinic_id, "clinic_ticket": ticket},
+        {"user_id": LAB_USER, "pin": LAB_PIN, "clinic_id": clinic_id, "clinic_ticket": ticket},
     )
     if code_l == 200 and isinstance(body_l, dict) and body_l.get("session_token"):
         lab_auth = {"X-Doctor-Session": body_l["session_token"]}
