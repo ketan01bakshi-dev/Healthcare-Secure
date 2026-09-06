@@ -250,7 +250,7 @@ Ensure `CLINICS` / `CLINIC_USERS` already include `east` or `gp` before staff si
 |------|--------|
 | Nightly DB backup | On VPS: cron `deploy/backup_pg.sh`; copy dumps off-box weekly |
 | Cert renewal | `certbot renew` then reload nginx (see `init_letsencrypt.sh` install notes) |
-| App updates | `git pull` → `docker compose up -d --build` (all clinics upgrade together) |
+| App updates | Prefer manual CD: [`CD_DEPLOY_SMOKE.md`](CD_DEPLOY_SMOKE.md) (Actions → Deploy + smoke). Fallback: sync code → `docker compose up -d --build` |
 | Restart API only | Step-by-step: [`RESTART_PRODUCTION_API.md`](RESTART_PRODUCTION_API.md) (`--force-recreate api` after `.env` edits) |
 | Video consult | Enable `video_consult` in clinic `CLINICS` features; set `VIDEO_CONSULT_PROVIDER=jitsi` and `JITSI_BASE_URL` (default `https://meet.jit.si`). Doctor Visit panel mints a room + SMS join link — **no call recording** on the VPS. |
 | Capacity | Watch Hostinger CPU/RAM/disk; upgrade VPS tier before many high-volume clinics |
