@@ -3,7 +3,7 @@
 **Single source of truth (student handbook):**  
 [docs/Healthcare_Secure_Handbook.docx](docs/Healthcare_Secure_Handbook.docx) — complete guide from first scaffold to current clinic app (architecture, Android/Capacitor, analytics, ABDM/SMS/multi-tenant, gynae decision support, Hostinger cloud ops, patient billing / Razorpay UPI QR, video consult, browser desk at `app.*`, Today-only patient pick, persisted lab orders, dual-stack DNS + nginx upstream RCA, Capacitor stale-UI RCA, Lab Desk 403 RCA, CORS Failed-to-fetch RCA, secrets, paid India VPS). Edition **15 Aug 2026**. Rebuild with `python docs/build_handbook_docx.py` (diagrams: `python docs/build_handbook_diagrams.py`).
 
-Annexes: [CLOUD_DEPLOY.md](docs/CLOUD_DEPLOY.md) · [RESTART_PRODUCTION_API.md](docs/RESTART_PRODUCTION_API.md) · [PLAY_STORE.md](docs/PLAY_STORE.md) · [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) · [ABDM_SMS_MULTI_TENANT.md](docs/ABDM_SMS_MULTI_TENANT.md) · [DEMO_CLIENT.md](docs/DEMO_CLIENT.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md) (Android / Cloud Agents)
+Annexes: [CLOUD_DEPLOY.md](docs/CLOUD_DEPLOY.md) · [CD_DEPLOY_SMOKE.md](docs/CD_DEPLOY_SMOKE.md) · [RESTART_PRODUCTION_API.md](docs/RESTART_PRODUCTION_API.md) · [PLAY_STORE.md](docs/PLAY_STORE.md) · [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) · [ABDM_SMS_MULTI_TENANT.md](docs/ABDM_SMS_MULTI_TENANT.md) · [DEMO_CLIENT.md](docs/DEMO_CLIENT.md) · [CHANGELOG.md](CHANGELOG.md) · [AGENTS.md](AGENTS.md) (Android / Cloud Agents)
 
 Production-oriented dual-root layout for a secure healthcare web app.
 

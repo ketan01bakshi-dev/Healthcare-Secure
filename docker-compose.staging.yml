@@ -1,0 +1,39 @@
+name: healthcare-secure-staging
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: healthcare
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-healthcare_staging}
+      POSTGRES_DB: healthcare
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthcare"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ${API_IMAGE:-healthcare-secure-staging-api:local}
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ${STAGING_ENV_FILE:-./backend/.env.staging}
+    environment:
+      APP_ENV: staging
+      REQUIRE_CLINIC_USERS: "true"
+      WHISPER_PRELOAD: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Host-only; production nginx proxies staging-api → this port.
+    ports:
+      - "127.0.0.1:8001:8000"
+
+volumes:
+  pgdata_staging:

@@ -1,0 +1,73 @@
+name: Nightly CT
+
+# Continuous Testing against live production (read-mostly smoke).
+# Does not deploy. Demo-clinic credentials only via secrets.
+on:
+  schedule:
+    # 00:30 UTC ≈ 06:00 IST
+    - cron: "30 0 * * *"
+  workflow_dispatch:
+    inputs:
+      deep_verify:
+        description: "Also run verify_live_demo.py (demo clinics only)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly-ct
+  cancel-in-progress: false
+
+jobs:
+  health-and-smoke:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Public health
+        run: |
+          curl -fsS https://api.aarogyaoneconnect.in/health
+          echo
+      - name: Smoke
+        env:
+          SMOKE_REQUIRE_SECRETS: "1"
+          SMOKE_API_BASE: ${{ secrets.SMOKE_API_BASE }}
+          SMOKE_CLINIC_NAME: ${{ secrets.SMOKE_CLINIC_NAME }}
+          SMOKE_CLINIC_PASSWORD: ${{ secrets.SMOKE_CLINIC_PASSWORD }}
+          SMOKE_DOCTOR_USER: ${{ secrets.SMOKE_DOCTOR_USER }}
+          SMOKE_DOCTOR_PIN: ${{ secrets.SMOKE_DOCTOR_PIN }}
+          SMOKE_LAB_USER: ${{ secrets.SMOKE_LAB_USER }}
+          SMOKE_LAB_PIN: ${{ secrets.SMOKE_LAB_PIN }}
+        run: |
+          export SMOKE_API_BASE="${SMOKE_API_BASE:-https://api.aarogyaoneconnect.in}"
+          python scripts/release_smoke_test.py "$SMOKE_API_BASE"
+      - name: Notify on failure
+        if: failure()
+        env:
+          WEBHOOK: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+        run: |
+          if [ -n "$WEBHOOK" ]; then
+            curl -fsS -X POST -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Nightly CT FAILED for api.aarogyaoneconnect.in run=${{ github.run_id }}\"}" \
+              "$WEBHOOK" || true
+          fi
+
+  deep-verify:
+    if: github.event_name == 'workflow_dispatch' && inputs.deep_verify == true
+    needs: [health-and-smoke]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Deep demo verify
+        env:
+          SMOKE_CLINIC_PASSWORD: ${{ secrets.SMOKE_CLINIC_PASSWORD }}
+          SMOKE_DOCTOR_PIN: ${{ secrets.SMOKE_DOCTOR_PIN }}
+        run: |
+          # verify_live_demo currently embeds demo roster; credentials overlap with smoke secrets.
+          python scripts/verify_live_demo.py https://api.aarogyaoneconnect.in
