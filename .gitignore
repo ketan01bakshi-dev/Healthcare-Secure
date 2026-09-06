@@ -21,6 +21,7 @@ frontend/ios/
 .env.local
 .env.*.local
 backend/.env
+backend/.env.staging
 frontend/.env
 frontend/.env.local
 

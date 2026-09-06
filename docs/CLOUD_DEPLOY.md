@@ -250,8 +250,9 @@ Ensure `CLINICS` / `CLINIC_USERS` already include `east` or `gp` before staff si
 |------|--------|
 | Nightly DB backup | On VPS: cron `deploy/backup_pg.sh`; copy dumps off-box weekly |
 | Cert renewal | `certbot renew` then reload nginx (see `init_letsencrypt.sh` install notes) |
-| App updates | Prefer manual CD: [`CD_DEPLOY_SMOKE.md`](CD_DEPLOY_SMOKE.md) (Actions → Deploy + smoke). Fallback: sync code → `docker compose up -d --build` |
+| App updates | Prefer Pipeline CD: [`CD_DEPLOY_SMOKE.md`](CD_DEPLOY_SMOKE.md) (CI → staging → approve → prod). Emergency: Actions → Deploy + smoke (manual). |
 | Restart API only | Step-by-step: [`RESTART_PRODUCTION_API.md`](RESTART_PRODUCTION_API.md) (`--force-recreate api` after `.env` edits) |
+| Staging | Same VPS Compose project `healthcare-secure-staging` on `:8001`; hosts `staging-api` / `staging-app` — see [`CD_DEPLOY_SMOKE.md`](CD_DEPLOY_SMOKE.md) |
 | Video consult | Enable `video_consult` in clinic `CLINICS` features; set `VIDEO_CONSULT_PROVIDER=jitsi` and `JITSI_BASE_URL` (default `https://meet.jit.si`). Doctor Visit panel mints a room + SMS join link — **no call recording** on the VPS. |
 | Capacity | Watch Hostinger CPU/RAM/disk; upgrade VPS tier before many high-volume clinics |
 | New phone | Same HTTPS APK + same API URL + that user’s PIN |

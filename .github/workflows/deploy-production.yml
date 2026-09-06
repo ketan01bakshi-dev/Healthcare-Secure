@@ -1,6 +1,6 @@
 name: Deploy + smoke (manual)
 
-# Continuous Delivery + Continuous Testing for production.
+# Emergency / hotfix lever. Prefer the Pipeline workflow for normal releases.
 # Does NOT run on push/PR — only when you click "Run workflow".
 on:
   workflow_dispatch:
@@ -15,9 +15,14 @@ on:
           - www
           - api+www
           - smoke-only
+          - rollback-api
       confirm:
         description: 'Type exactly deploy-production to proceed'
         required: true
+        type: string
+      image_tag:
+        description: "Optional GHCR tag/digest for api deploy (else local --build)"
+        required: false
         type: string
       ref_note:
         description: "Optional note for the Actions log (ticket / reason)"
@@ -38,11 +43,11 @@ jobs:
             echo "::error::Refusing to run. Set confirm=deploy-production"
             exit 1
           fi
-          echo "Confirmed production deploy. target=${{ inputs.target }} note=${{ inputs.ref_note }}"
+          echo "Confirmed. target=${{ inputs.target }} note=${{ inputs.ref_note }}"
 
   deploy:
     needs: guard
-    if: inputs.target != 'smoke-only'
+    if: inputs.target != 'smoke-only' && inputs.target != 'rollback-api'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -50,19 +55,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure SSH
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: |
-          test -n "$DEPLOY_SSH_KEY" || { echo "::error::Missing secret DEPLOY_SSH_KEY"; exit 1; }
-          test -n "$DEPLOY_HOST" || { echo "::error::Missing secret DEPLOY_HOST"; exit 1; }
-          test -n "$DEPLOY_USER" || { echo "::error::Missing secret DEPLOY_USER"; exit 1; }
-          mkdir -p ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-          echo "HOST=${DEPLOY_USER}@${DEPLOY_HOST}" >> "$GITHUB_ENV"
+        uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
 
       - name: Resolve remote path
         env:
@@ -73,7 +70,6 @@ jobs:
       - name: Sync API / compose files
         if: contains(fromJSON('["api","api+www"]'), inputs.target)
         run: |
-          # Preserve VPS secrets and generated assets; never sync .env or certs.
           rsync -az --delete \
             -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
             --exclude '.git/' \
@@ -94,40 +90,91 @@ jobs:
             --exclude '*.pyc' \
             --exclude '.cursor/' \
             --exclude 'debug-*.log' \
-            ./ "${HOST}:${REMOTE_PATH}/"
+            ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_PATH}/"
 
-      - name: Rebuild API on VPS
+      - name: Backup then rebuild API on VPS
         if: contains(fromJSON('["api","api+www"]'), inputs.target)
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
         run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
           ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$HOST" "bash ${REMOTE_PATH}/deploy/remote_rebuild_api.sh ${REMOTE_PATH}"
+            "$HOST" "bash ${REMOTE_PATH}/deploy/remote_backup_before_deploy.sh ${REMOTE_PATH} || true"
+          if [ -n "$IMAGE_TAG" ]; then
+            TOKEN="${GHCR_TOKEN:-${{ secrets.GITHUB_TOKEN }}}"
+            ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes "$HOST" \
+              "echo '$TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
+               bash ${REMOTE_PATH}/deploy/remote_rebuild_api.sh ${REMOTE_PATH} '$IMAGE_TAG'"
+          else
+            ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$HOST" "bash ${REMOTE_PATH}/deploy/remote_rebuild_api.sh ${REMOTE_PATH}"
+          fi
 
       - name: Sync marketing www
         if: contains(fromJSON('["www","api+www"]'), inputs.target)
         run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
           ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$HOST" "mkdir -p ${REMOTE_PATH}/deploy/www"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE_PATH}/deploy/remote_sync_static.sh ${REMOTE_PATH} deploy/www || true"
           rsync -az --delete \
             -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
             deploy/www/ "${HOST}:${REMOTE_PATH}/deploy/www/"
           ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$HOST" "bash ${REMOTE_PATH}/deploy/remote_reload_nginx.sh ${REMOTE_PATH}"
 
-  smoke:
-    needs: [guard, deploy]
-    if: always() && needs.guard.result == 'success' && (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
+  rollback:
+    needs: guard
+    if: inputs.target == 'rollback-api'
     runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Rollback API
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          if [ -n "$IMAGE_TAG" ]; then
+            ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$HOST" "bash ${REMOTE}/deploy/remote_rebuild_api.sh ${REMOTE} '$IMAGE_TAG'"
+          else
+            ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$HOST" "bash ${REMOTE}/deploy/remote_rollback_api.sh ${REMOTE}"
+          fi
+
+  smoke:
+    needs: [guard, deploy, rollback]
+    if: |
+      always() &&
+      needs.guard.result == 'success' &&
+      (
+        inputs.target == 'smoke-only' ||
+        needs.deploy.result == 'success' ||
+        needs.rollback.result == 'success'
+      )
+    runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Run production smoke tests
         env:
+          SMOKE_REQUIRE_SECRETS: "1"
           SMOKE_API_BASE: ${{ secrets.SMOKE_API_BASE }}
           SMOKE_CLINIC_NAME: ${{ secrets.SMOKE_CLINIC_NAME }}
           SMOKE_CLINIC_PASSWORD: ${{ secrets.SMOKE_CLINIC_PASSWORD }}
@@ -138,9 +185,6 @@ jobs:
         run: |
           export SMOKE_API_BASE="${SMOKE_API_BASE:-https://api.aarogyaoneconnect.in}"
           export SMOKE_CLINIC_NAME="${SMOKE_CLINIC_NAME:-Alpha Clinic}"
-          export SMOKE_CLINIC_PASSWORD="${SMOKE_CLINIC_PASSWORD:-ClinicShare2026}"
           export SMOKE_DOCTOR_USER="${SMOKE_DOCTOR_USER:-dr_main}"
-          export SMOKE_DOCTOR_PIN="${SMOKE_DOCTOR_PIN:-4829}"
           export SMOKE_LAB_USER="${SMOKE_LAB_USER:-lab1}"
-          export SMOKE_LAB_PIN="${SMOKE_LAB_PIN:-7391}"
           python scripts/release_smoke_test.py "$SMOKE_API_BASE"

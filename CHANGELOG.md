@@ -8,6 +8,9 @@ Git tags and GitHub Releases use a `v` prefix (e.g. `v0.1.0`).
 
 ### Added
 
+- Production-grade CI/CD/CT: expandable CI (backend + frontend + compose), Pipeline (GHCR → staging → approve → prod + rollback), Nightly CT — see [`docs/CD_DEPLOY_SMOKE.md`](docs/CD_DEPLOY_SMOKE.md)
+- Staging Compose stack (`docker-compose.staging.yml`), nginx `staging-api` / `staging-app` vhosts, remote rebuild/rollback/seed helpers
+- Manual Deploy + smoke workflow with fail-closed smoke secrets and API rollback target
 - Patient billing ledger on **Patient Info** (`POST /history/billing`, `billing-summary`); roles doctor/staff/receptionist
 - Razorpay UPI QR pay (`/api/v1/payments/*`, webhook → ledger payment); see [`docs/CLOUD_DEPLOY.md`](docs/CLOUD_DEPLOY.md)
 - Video consult (Jitsi) behind clinic feature `video_consult`

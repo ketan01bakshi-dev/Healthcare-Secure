@@ -1,0 +1,26 @@
+# Python / tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+tests/
+*.md
+.env
+.env.*
+!.env.example
+!.env.cloud.example
+
+# Local data / heavy models
+data/
+app/data/
+*.db
+*.sqlite*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

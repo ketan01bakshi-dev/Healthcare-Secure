@@ -1,98 +1,163 @@
-# Manual Deploy + Smoke (CD + CT)
+# Production-grade CI / CD / CT — Aarogya One Connect
 
-This repo’s **CI** (`.github/workflows/ci.yml`) still runs pytest on every push/PR.
+This document is the operator runbook for the autonomous pipeline.
 
-**Deploy to production does not run on push.** Use the manual workflow:
+## Autonomy model
 
-**Actions → Deploy + smoke (manual) → Run workflow**
+| Stage | Behavior |
+|-------|----------|
+| **CI** | Every PR: backend pytest + frontend lint/tsc/build + compose config |
+| **CD staging** | Every `main` push that touches API: build GHCR image → auto-deploy staging → smoke |
+| **CD production** | After staging smoke: waits for GitHub Environment **`production`** approval → backup → deploy same image → smoke |
+| **CT rollback** | If prod smoke fails: auto-rollback to `.release-tag.prev` → re-smoke |
+| **Nightly CT** | Schedule (~06:00 IST): live health + smoke (no deploy) |
+| **Manual** | `Deploy + smoke (manual)` and Pipeline `workflow_dispatch` for hotfix/rollback |
 
-## What it does
+Production is **never** auto-deployed without the Environment approval click.
 
-| Input `target` | Effect |
-|----------------|--------|
-| `api` | Sync code → rebuild/recreate Docker `api` → restart nginx → smoke |
-| `www` | Sync `deploy/www` → reload nginx → smoke |
-| `api+www` | Both of the above → smoke |
-| `smoke-only` | No deploy; only hit live API with `release_smoke_test.py` |
+```text
+PR ──► CI (gating)
+main push (API) ──► CI ──► GHCR image ──► staging deploy+smoke
+                                      └──► [approve production] ──► backup ──► prod deploy+smoke
+                                                                              └── fail ──► rollback
+```
 
-You must type **`deploy-production`** in the `confirm` box or the run aborts.
+## Workflows
 
-Safety:
-
-- Never auto-deploys on commit
-- Never syncs `backend/.env`, `.compose.env`, or `deploy/certs/`
-- Never runs `docker compose down -v` (Postgres volume stays)
-- Uses GitHub Environment **`production`** (optional required reviewers)
-- One deploy at a time (`concurrency` group)
+| File | Trigger | Purpose |
+|------|---------|---------|
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | PR (+ reusable) | Classroom CI |
+| [`.github/workflows/pipeline.yml`](../.github/workflows/pipeline.yml) | `main` push + dispatch | Full CD/CT |
+| [`.github/workflows/nightly-ct.yml`](../.github/workflows/nightly-ct.yml) | Cron + dispatch | Live CT |
+| [`.github/workflows/deploy-production.yml`](../.github/workflows/deploy-production.yml) | Dispatch only | Emergency lever |
 
 ## One-time GitHub setup
 
-### 1. Create Environment
+### 1. Environments
 
-Repo → **Settings → Environments → New environment** → name: `production`.
+**Settings → Environments**
 
-Optional but recommended: enable **Required reviewers** (yourself) so the deploy job waits for a click even after `workflow_dispatch`.
+1. **`staging`** — no required reviewers (auto).
+2. **`production`** — enable **Required reviewers** (add yourself). Optional wait timer 5 minutes.
 
-### 2. Add repository secrets
+### 2. Branch protection (`main`)
 
-Repo → **Settings → Secrets and variables → Actions → New repository secret**:
+**Settings → Branches → Add rule** for `main`:
 
-| Secret | Example / notes |
-|--------|-----------------|
-| `DEPLOY_SSH_KEY` | Full private key PEM for the VPS (`healthcare_hostinger` contents) |
-| `DEPLOY_HOST` | `187.127.170.45` |
-| `DEPLOY_USER` | `root` |
-| `DEPLOY_PATH` | `/root/Healthcare-Secure` (optional; this is the default) |
-| `SMOKE_CLINIC_PASSWORD` | Demo clinic password (recommended over relying on script default) |
-| `SMOKE_DOCTOR_PIN` | Doctor PIN for smoke |
-| `SMOKE_LAB_PIN` | Lab PIN for smoke |
+- Require a pull request before merging
+- Require status checks: **`CI / gating`** (from the CI workflow on PRs)
+- Require linear history (optional)
+- Do not allow force pushes
 
-Optional overrides: `SMOKE_API_BASE`, `SMOKE_CLINIC_NAME`, `SMOKE_DOCTOR_USER`, `SMOKE_LAB_USER`.
+### 3. Repository / environment secrets
 
-### 3. VPS authorized_keys
+Add under **Settings → Secrets and variables → Actions** (prefer Environment secrets for prod/staging where possible):
 
-The public half of `DEPLOY_SSH_KEY` must already be in `/root/.ssh/authorized_keys` on the VPS (same key you use from Windows).
+| Secret | Where | Notes |
+|--------|-------|-------|
+| `DEPLOY_SSH_KEY` | repo or both envs | PEM private key (`healthcare_hostinger`) |
+| `DEPLOY_HOST` | repo | e.g. `187.127.170.45` |
+| `DEPLOY_USER` | repo | `root` |
+| `DEPLOY_PATH` | production | `/root/Healthcare-Secure` |
+| `STAGING_DEPLOY_PATH` | staging | `/root/Healthcare-Secure-Staging` |
+| `GHCR_READ_TOKEN` | both | PAT with `read:packages` for VPS `docker login` (or rely on `GITHUB_TOKEN` if package is visible to the deploy identity) |
+| `SMOKE_CLINIC_PASSWORD` | production | **Required** — no fallback in Actions |
+| `SMOKE_DOCTOR_PIN` | production | **Required** |
+| `SMOKE_LAB_PIN` | production | **Required** |
+| `SMOKE_API_BASE` | production | optional, default live API URL |
+| `SMOKE_CLINIC_NAME` / `SMOKE_DOCTOR_USER` / `SMOKE_LAB_USER` | production | optional |
+| `STAGING_SMOKE_*` | staging | same shape as SMOKE_* for staging-api |
+| `NOTIFY_WEBHOOK_URL` | production | optional Slack/Discord/Telegram webhook |
 
-## How to run
+### 4. GHCR package
 
-1. Merge / push the commit you want on `main` (CI must be green).
-2. Actions → **Deploy + smoke (manual)** → **Run workflow**.
-3. Branch: `main`.
-4. `target`: usually `api`.
-5. `confirm`: `deploy-production`.
-6. Run → wait for deploy + smoke jobs.
+After the first image push, open the `healthcare-api` package → Package settings → ensure the Actions identity / deploy token can pull. Prefer **private**.
 
-CLI equivalent:
-
-```bash
-gh workflow run "Deploy + smoke (manual)" \
-  -f target=api \
-  -f confirm=deploy-production \
-  -f ref_note="release after CI green"
-gh run watch
-```
-
-Smoke-only (no SSH deploy):
+## One-time VPS setup
 
 ```bash
-gh workflow run "Deploy + smoke (manual)" \
-  -f target=smoke-only \
-  -f confirm=deploy-production
+# Staging directory (separate Compose project; wipeable DB)
+mkdir -p /root/Healthcare-Secure-Staging/backend /root/Healthcare-Secure-Staging/deploy
+# Copy backend/.env.staging.example → backend/.env.staging and edit secrets
+# Ensure POSTGRES password matches staging compose / DATABASE_URL
+
+mkdir -p /root/Healthcare-Secure/deploy/web-staging
+# First pipeline deploy syncs compose files; or scp them once.
+
+# Docker login for pulls (use GHCR_READ_TOKEN)
+echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
 ```
 
-## Local scripts used by the workflow
+### DNS + TLS (Hostinger)
 
-| File | Role |
-|------|------|
-| `deploy/remote_rebuild_api.sh` | On VPS: `compose up --build --force-recreate api` + nginx restart + health wait |
-| `deploy/remote_reload_nginx.sh` | On VPS: nginx reload after static sync |
-| `scripts/release_smoke_test.py` | CT against live API (env-overridable credentials) |
+| Type | Name | Points to |
+|------|------|-----------|
+| A | `staging-api` | VPS IP |
+| A | `staging-app` | VPS IP |
 
-## Out of scope (for now)
+Re-issue Let’s Encrypt with SANs including:
 
-- Auto-deploy on every `main` push
-- Browser desk (`app`) build/publish — still `scripts/deploy_web.cmd`
-- APK / Play Store CD
-- Nightly scheduled CT (easy follow-up: new workflow `on: schedule` calling smoke-only)
+`api`, `app`, `www`, `staging-api`, `staging-app`
 
-Related: [`CLOUD_DEPLOY.md`](CLOUD_DEPLOY.md) · [`RESTART_PRODUCTION_API.md`](RESTART_PRODUCTION_API.md)
+Then reload production nginx (config already has staging server blocks proxying to `host.docker.internal:8001`).
+
+### Seed staging demos
+
+Actions → **Pipeline** → Run workflow → `action=seed-staging`  
+or on VPS: `bash deploy/remote_seed_staging.sh /root/Healthcare-Secure-Staging`
+
+## Day-to-day usage
+
+### Normal release (API)
+
+1. Open PR → wait for **CI / gating** green → merge to `main`.
+2. Pipeline builds image, deploys staging, runs staging smoke.
+3. Open the Actions run → **Review deployments** → Approve **production**.
+4. Watch prod deploy + smoke. On failure, rollback runs automatically.
+
+### Website-only / app-only
+
+Path filters deploy `www` or `app` after CI + production approval (same Environment). API image is skipped when those paths change without backend.
+
+### Emergency
+
+- **Deploy + smoke (manual)** with `confirm=deploy-production`
+- Pipeline dispatch: `rollback-api`, optional `image_tag`
+- Never run `docker compose down -v` on production
+
+### Nightly / deep verify
+
+- Automatic: Nightly CT workflow
+- Manual deep: Nightly CT → `deep_verify=true` (demo clinics only)
+
+## Scripts reference
+
+| Script | Role |
+|--------|------|
+| `deploy/remote_rebuild_api.sh` | Pull/recreate API; records `.release-tag` |
+| `deploy/remote_rollback_api.sh` | Recreate from `.release-tag.prev` |
+| `deploy/remote_backup_before_deploy.sh` | Calls `backup_pg.sh` |
+| `deploy/remote_reload_nginx.sh` | nginx -t + reload |
+| `deploy/remote_sync_static.sh` | Snapshot static dir before replace |
+| `deploy/remote_rollback_static.sh` | Restore static snapshot |
+| `deploy/remote_seed_staging.sh` | Wipe+seed staging demos |
+| `scripts/release_smoke_test.py` | CT smoke (`SMOKE_REQUIRE_SECRETS=1` in Actions) |
+| `scripts/verify_live_demo.py` | Deep demo verify |
+
+## Compose overlays
+
+- [`docker-compose.yml`](../docker-compose.yml) — production `db`+`api`+`nginx`
+- [`docker-compose.image.yml`](../docker-compose.image.yml) — sets `api.image` from `API_IMAGE`
+- [`docker-compose.staging.yml`](../docker-compose.staging.yml) — staging project on `:8001`
+
+## Safety rules
+
+- Never sync `backend/.env`, `.compose.env`, or `deploy/certs/` from CI
+- Never wipe production `pgdata`
+- Prod smoke **fail-closed** without secrets
+- Staging DB is disposable; production is not
+- Keep `Deploy + smoke (manual)` until Pipeline is proven on a few releases
+
+## Merge note
+
+PR #4 (manual deploy+smoke) is included in this branch. Merge this feature branch to `main` after secrets/environments exist, then run **Pipeline → smoke-only** once before the first real API deploy.
