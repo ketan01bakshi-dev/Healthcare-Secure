@@ -53,6 +53,15 @@ async def lifespan(_app: FastAPI):
         print(f"[schema] migrate skipped: {exc}")
 
     try:
+        from app.services.schema_migrate import encrypt_patient_names
+
+        n = encrypt_patient_names(engine)
+        if n:
+            print(f"[schema] encrypted {n} legacy patient name(s)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[schema] patient-name encryption skipped: {exc}")
+
+    try:
         from app.services.doctor_auth import purge_expired_sessions
 
         purge_expired_sessions()

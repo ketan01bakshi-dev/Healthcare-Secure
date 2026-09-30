@@ -13,6 +13,7 @@ from sqlalchemy import DateTime, String, Uuid, func, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.core.database import Base, get_db
+from app.core.encrypted_type import EncryptedText
 from app.services.doctor_auth import ClinicalSession, DoctorSession
 from app.services.security import tokenize_patient_identifier
 
@@ -29,7 +30,8 @@ class QueueEntry(Base):
         String(64), nullable=False, default="default", index=True
     )
     queue_date: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
-    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Fernet-encrypted at rest (EncryptedText); plaintext on the ORM object
+    display_name: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     blind_patient_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     note: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="waiting")
