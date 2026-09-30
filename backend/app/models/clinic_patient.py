@@ -8,6 +8,7 @@ from sqlalchemy import DateTime, Float, Integer, PrimaryKeyConstraint, String, T
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.encrypted_type import EncryptedText
 
 
 class ClinicPatient(Base):
@@ -20,7 +21,8 @@ class ClinicPatient(Base):
 
     clinic_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     blind_patient_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    display_name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    # Fernet-encrypted at rest (EncryptedText); plaintext on the ORM object
+    display_name: Mapped[str] = mapped_column(EncryptedText, nullable=False, default="")
     phone_last4: Mapped[str] = mapped_column(String(4), nullable=False, default="")
     phone_encrypted: Mapped[str] = mapped_column(Text, nullable=False, default="")
     clinic_mrn: Mapped[str] = mapped_column(String(64), nullable=False, default="")

@@ -10,6 +10,7 @@ from sqlalchemy import DateTime, Index, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.encrypted_type import EncryptedText
 
 
 class Appointment(Base):
@@ -25,7 +26,8 @@ class Appointment(Base):
     )
     clinic_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     blind_patient_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Fernet-encrypted at rest (EncryptedText); plaintext on the ORM object
+    display_name: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     # Fernet token or empty when SMS already sent and number discarded
     phone_encrypted: Mapped[str] = mapped_column(Text, nullable=False, default="")
     phone_last4: Mapped[str] = mapped_column(String(4), nullable=False, default="")

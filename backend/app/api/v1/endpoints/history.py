@@ -259,7 +259,7 @@ def list_clinic_patients(
 
     from app.services.clinic_patients import (
         compute_visit_counts,
-        list_clinic_patients_stmt,
+        list_clinic_patients,
         sync_patients_from_appointments,
     )
 
@@ -274,10 +274,9 @@ def list_clinic_patients(
     elif period_key in {"month", "30d"}:
         seen_from = now - timedelta(days=30)
 
-    stmt = list_clinic_patients_stmt(
-        session.clinic_id, q=q, seen_from=seen_from, seen_to=None
+    rows = list_clinic_patients(
+        db, session.clinic_id, q=q, seen_from=seen_from, seen_to=None
     )
-    rows = db.scalars(stmt).all()
     visit_counts = compute_visit_counts(
         db,
         session.clinic_id,
@@ -329,7 +328,7 @@ def clinical_search(
     Lab users see only their own uploaded results.
     """
     from app.models.clinic_patient import ClinicPatient
-    from app.services.clinic_patients import list_clinic_patients_stmt
+    from app.services.clinic_patients import list_clinic_patients
 
     term = (q or "").strip().lower()
     if len(term) < 2:
@@ -339,8 +338,7 @@ def clinical_search(
     seen_patient_ids: set[str] = set()
 
     # --- 1. Patient name / phone / MRN matches ---
-    stmt = list_clinic_patients_stmt(session.clinic_id, q=term)
-    patient_rows = db.scalars(stmt).all()
+    patient_rows = list_clinic_patients(db, session.clinic_id, q=term)
     patient_meta: dict[str, ClinicPatient] = {}
     for row in patient_rows:
         patient_meta[row.blind_patient_id] = row

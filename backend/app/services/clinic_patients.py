@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Select, or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.appointment import Appointment
@@ -127,30 +127,40 @@ def sync_patients_from_appointments(db: Session, clinic_id: str) -> int:
     return added
 
 
-def list_clinic_patients_stmt(
+def list_clinic_patients(
+    db: Session,
     clinic_id: str,
     *,
     q: str | None = None,
     seen_from: datetime | None = None,
     seen_to: datetime | None = None,
-) -> Select[tuple[ClinicPatient]]:
+) -> list[ClinicPatient]:
+    """
+    Clinic roster, newest first, optionally filtered by name / phone last 4 / MRN.
+
+    Names are encrypted at rest, so the text match runs in Python on the
+    decrypted rows (fine at clinic-roster scale), not as SQL ILIKE.
+    """
     stmt = select(ClinicPatient).where(ClinicPatient.clinic_id == clinic_id)
-    needle = (q or "").strip()
-    if needle:
-        like = f"%{needle}%"
-        clauses = [ClinicPatient.display_name.ilike(like)]
-        digits = "".join(c for c in needle if c.isdigit())
-        if digits:
-            clauses.append(ClinicPatient.phone_last4.contains(digits[-4:]))
-            clauses.append(ClinicPatient.clinic_mrn.ilike(f"%{digits}%"))
-        else:
-            clauses.append(ClinicPatient.clinic_mrn.ilike(like))
-        stmt = stmt.where(or_(*clauses))
     if seen_from is not None:
         stmt = stmt.where(ClinicPatient.last_seen_at >= seen_from)
     if seen_to is not None:
         stmt = stmt.where(ClinicPatient.last_seen_at <= seen_to)
-    return stmt.order_by(ClinicPatient.last_seen_at.desc())
+    rows = list(db.scalars(stmt.order_by(ClinicPatient.last_seen_at.desc())).all())
+    needle = (q or "").strip().lower()
+    if not needle:
+        return rows
+    digits = "".join(c for c in needle if c.isdigit())
+
+    def matches(r: ClinicPatient) -> bool:
+        if needle in (r.display_name or "").lower():
+            return True
+        mrn = (r.clinic_mrn or "").lower()
+        if digits:
+            return digits[-4:] in (r.phone_last4 or "") or digits in mrn
+        return needle in mrn
+
+    return [r for r in rows if matches(r)]
 
 
 def compute_visit_counts(
