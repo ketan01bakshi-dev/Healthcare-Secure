@@ -1,0 +1,523 @@
+name: Pipeline
+
+# Happy path on main: CI → GHCR image → staging deploy+smoke → production Environment
+# approval → prod deploy+smoke → auto-rollback if prod smoke fails.
+# PRs only run reusable CI (see ci.yml). Manual hotfix/rollback via workflow_dispatch.
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Manual action"
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - api
+          - www
+          - app
+          - smoke-only
+          - rollback-api
+          - seed-staging
+      confirm:
+        description: "Type deploy-production for prod-affecting actions"
+        required: false
+        type: string
+      image_tag:
+        description: "Optional image tag/digest override"
+        required: false
+        type: string
+      ref_note:
+        description: "Optional note"
+        required: false
+        type: string
+
+concurrency:
+  group: pipeline-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/healthcare-api
+
+jobs:
+  changes:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'full')
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      www: ${{ steps.filter.outputs.www }}
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'backend/**'
+              - 'docker-compose.yml'
+              - 'docker-compose.image.yml'
+              - 'docker-compose.staging.yml'
+              - 'deploy/remote_*.sh'
+              - 'deploy/nginx/**'
+              - '.github/workflows/pipeline.yml'
+              - '.github/workflows/ci.yml'
+            www:
+              - 'deploy/www/**'
+            app:
+              - 'frontend/**'
+
+  ci:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.action == 'full' || inputs.action == 'api' || inputs.action == 'www' || inputs.action == 'app'))
+    uses: ./.github/workflows/ci.yml
+
+  build-image:
+    needs: [ci, changes]
+    if: |
+      always() &&
+      needs.ci.result == 'success' &&
+      (
+        (github.event_name == 'push' && needs.changes.result == 'success' && needs.changes.outputs.api == 'true') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.action == 'full' || inputs.action == 'api'))
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image metadata
+        id: meta
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.sha }}"; fi
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging-api:
+    needs: [build-image]
+    if: always() && needs.build-image.result == 'success'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Sync staging compose + helpers
+        env:
+          STAGING_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${STAGING_PATH:-/root/Healthcare-Secure-Staging}"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "mkdir -p ${REMOTE}/backend/scripts ${REMOTE}/deploy"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            docker-compose.staging.yml \
+            "${HOST}:${REMOTE}/docker-compose.staging.yml"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/remote_rebuild_api.sh deploy/remote_seed_staging.sh \
+            "${HOST}:${REMOTE}/deploy/"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            backend/scripts/seed_demo.py backend/scripts/seed_demo_gp.py \
+            "${HOST}:${REMOTE}/backend/scripts/"
+      - name: Pull image and recreate staging API
+        env:
+          STAGING_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          IMAGE: ${{ needs.build-image.outputs.image }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${STAGING_PATH:-/root/Healthcare-Secure-Staging}"
+          TOKEN="${GHCR_TOKEN:-${{ secrets.GITHUB_TOKEN }}}"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes "$HOST" bash -s <<EOF
+          set -euo pipefail
+          echo '$TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin
+          cd '$REMOTE'
+          test -f backend/.env.staging
+          set -a
+          [[ -f .compose.env ]] && . ./.compose.env
+          set +a
+          export API_IMAGE='$IMAGE'
+          docker compose -p healthcare-secure-staging -f docker-compose.staging.yml pull api
+          docker compose -p healthcare-secure-staging -f docker-compose.staging.yml up -d --no-build --force-recreate api
+          ok=0
+          for i in \$(seq 1 45); do
+            curl -fsS http://127.0.0.1:8001/health >/dev/null 2>&1 && ok=1 && break
+            sleep 2
+          done
+          test "\$ok" = "1"
+          if [[ -f .release-tag ]]; then cp .release-tag .release-tag.prev; fi
+          printf '%s\\n' '$IMAGE' > .release-tag
+          # Reload prod nginx so staging-api vhost picks host gateway if config changed
+          if [[ -d /root/Healthcare-Secure ]]; then
+            cd /root/Healthcare-Secure && docker compose exec -T nginx nginx -t && docker compose exec -T nginx nginx -s reload || true
+          fi
+          EOF
+
+  smoke-staging:
+    needs: [deploy-staging-api]
+    if: always() && needs.deploy-staging-api.result == 'success'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Staging smoke
+        env:
+          SMOKE_REQUIRE_SECRETS: "1"
+          SMOKE_API_BASE: ${{ secrets.STAGING_SMOKE_API_BASE }}
+          SMOKE_CLINIC_NAME: ${{ secrets.STAGING_SMOKE_CLINIC_NAME }}
+          SMOKE_CLINIC_PASSWORD: ${{ secrets.STAGING_SMOKE_CLINIC_PASSWORD }}
+          SMOKE_DOCTOR_USER: ${{ secrets.STAGING_SMOKE_DOCTOR_USER }}
+          SMOKE_DOCTOR_PIN: ${{ secrets.STAGING_SMOKE_DOCTOR_PIN }}
+          SMOKE_LAB_USER: ${{ secrets.STAGING_SMOKE_LAB_USER }}
+          SMOKE_LAB_PIN: ${{ secrets.STAGING_SMOKE_LAB_PIN }}
+        run: |
+          export SMOKE_API_BASE="${SMOKE_API_BASE:-https://staging-api.aarogyaoneconnect.in}"
+          export SMOKE_CLINIC_NAME="${SMOKE_CLINIC_NAME:-Alpha Clinic}"
+          export SMOKE_DOCTOR_USER="${SMOKE_DOCTOR_USER:-dr_main}"
+          export SMOKE_LAB_USER="${SMOKE_LAB_USER:-lab1}"
+          python scripts/release_smoke_test.py "$SMOKE_API_BASE"
+
+  deploy-production-api:
+    needs: [smoke-staging, build-image]
+    if: always() && needs.smoke-staging.result == 'success' && needs.build-image.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Pre-deploy DB backup
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/remote_backup_before_deploy.sh "${HOST}:${REMOTE}/deploy/"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE}/deploy/remote_backup_before_deploy.sh ${REMOTE} || true"
+      - name: Sync compose helpers and nginx
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            docker-compose.yml docker-compose.image.yml \
+            "${HOST}:${REMOTE}/"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/remote_rebuild_api.sh deploy/remote_rollback_api.sh \
+            deploy/remote_reload_nginx.sh deploy/remote_sync_static.sh \
+            deploy/remote_rollback_static.sh deploy/remote_backup_before_deploy.sh \
+            "${HOST}:${REMOTE}/deploy/"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/nginx/nginx.conf "${HOST}:${REMOTE}/deploy/nginx/nginx.conf"
+      - name: Deploy image
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          IMAGE: ${{ needs.build-image.outputs.image }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          TOKEN="${GHCR_TOKEN:-${{ secrets.GITHUB_TOKEN }}}"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes "$HOST" \
+            "echo '$TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
+             bash ${REMOTE}/deploy/remote_rebuild_api.sh ${REMOTE} '$IMAGE'"
+
+  smoke-production:
+    needs: [deploy-production-api]
+    if: always() && needs.deploy-production-api.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Production smoke
+        env:
+          SMOKE_REQUIRE_SECRETS: "1"
+          SMOKE_API_BASE: ${{ secrets.SMOKE_API_BASE }}
+          SMOKE_CLINIC_NAME: ${{ secrets.SMOKE_CLINIC_NAME }}
+          SMOKE_CLINIC_PASSWORD: ${{ secrets.SMOKE_CLINIC_PASSWORD }}
+          SMOKE_DOCTOR_USER: ${{ secrets.SMOKE_DOCTOR_USER }}
+          SMOKE_DOCTOR_PIN: ${{ secrets.SMOKE_DOCTOR_PIN }}
+          SMOKE_LAB_USER: ${{ secrets.SMOKE_LAB_USER }}
+          SMOKE_LAB_PIN: ${{ secrets.SMOKE_LAB_PIN }}
+        run: |
+          export SMOKE_API_BASE="${SMOKE_API_BASE:-https://api.aarogyaoneconnect.in}"
+          export SMOKE_CLINIC_NAME="${SMOKE_CLINIC_NAME:-Alpha Clinic}"
+          export SMOKE_DOCTOR_USER="${SMOKE_DOCTOR_USER:-dr_main}"
+          export SMOKE_LAB_USER="${SMOKE_LAB_USER:-lab1}"
+          python scripts/release_smoke_test.py "$SMOKE_API_BASE"
+
+  rollback-production-api:
+    needs: [smoke-production, deploy-production-api]
+    if: always() && needs.smoke-production.result == 'failure' && needs.deploy-production-api.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Rollback API
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE}/deploy/remote_rollback_api.sh ${REMOTE}"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Re-smoke after rollback
+        env:
+          SMOKE_REQUIRE_SECRETS: "1"
+          SMOKE_API_BASE: ${{ secrets.SMOKE_API_BASE }}
+          SMOKE_CLINIC_NAME: ${{ secrets.SMOKE_CLINIC_NAME }}
+          SMOKE_CLINIC_PASSWORD: ${{ secrets.SMOKE_CLINIC_PASSWORD }}
+          SMOKE_DOCTOR_USER: ${{ secrets.SMOKE_DOCTOR_USER }}
+          SMOKE_DOCTOR_PIN: ${{ secrets.SMOKE_DOCTOR_PIN }}
+          SMOKE_LAB_USER: ${{ secrets.SMOKE_LAB_USER }}
+          SMOKE_LAB_PIN: ${{ secrets.SMOKE_LAB_PIN }}
+        run: |
+          export SMOKE_API_BASE="${SMOKE_API_BASE:-https://api.aarogyaoneconnect.in}"
+          python scripts/release_smoke_test.py "$SMOKE_API_BASE"
+      - name: Notify critical
+        if: always()
+        env:
+          WEBHOOK: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          SMOKE_RESULT: ${{ job.status }}
+        run: |
+          if [ -n "$WEBHOOK" ]; then
+            curl -fsS -X POST -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Prod smoke failed; rollback finished status=${SMOKE_RESULT}. run=${{ github.run_id }}\"}" \
+              "$WEBHOOK" || true
+          fi
+
+  deploy-production-www:
+    needs: [ci, changes]
+    if: |
+      always() &&
+      needs.ci.result == 'success' &&
+      github.event_name == 'push' &&
+      needs.changes.outputs.www == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Publish www
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/remote_sync_static.sh deploy/remote_reload_nginx.sh deploy/remote_rollback_static.sh \
+            "${HOST}:${REMOTE}/deploy/"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE}/deploy/remote_sync_static.sh ${REMOTE} deploy/www"
+          rsync -az --delete -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/www/ "${HOST}:${REMOTE}/deploy/www/"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE}/deploy/remote_reload_nginx.sh ${REMOTE}"
+          curl -fsSI https://www.aarogyaoneconnect.in/ | head -n 5
+
+  deploy-production-app:
+    needs: [ci, changes]
+    if: |
+      always() &&
+      needs.ci.result == 'success' &&
+      github.event_name == 'push' &&
+      needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.aarogyaoneconnect.in
+        run: |
+          npm ci
+          npm run build
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Publish app desk
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/remote_sync_static.sh deploy/remote_reload_nginx.sh deploy/remote_rollback_static.sh \
+            "${HOST}:${REMOTE}/deploy/"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE}/deploy/remote_sync_static.sh ${REMOTE} deploy/web"
+          rsync -az --delete -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            frontend/out/ "${HOST}:${REMOTE}/deploy/web/"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE}/deploy/remote_reload_nginx.sh ${REMOTE}"
+          curl -fsSI https://app.aarogyaoneconnect.in/ | head -n 5
+
+  notify-success:
+    needs: [smoke-production]
+    if: always() && needs.smoke-production.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify
+        env:
+          WEBHOOK: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+        run: |
+          if [ -n "$WEBHOOK" ]; then
+            curl -fsS -X POST -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Prod API smoke OK. sha=${{ github.sha }} run=${{ github.run_id }}\"}" \
+              "$WEBHOOK" || true
+          fi
+
+  manual-guard:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm
+        run: |
+          ACTION="${{ inputs.action }}"
+          case "$ACTION" in
+            smoke-only|seed-staging) echo "ok $ACTION" ;;
+            *)
+              if [ "${{ inputs.confirm }}" != "deploy-production" ]; then
+                echo "::error::Set confirm=deploy-production for action=$ACTION"
+                exit 1
+              fi
+              ;;
+          esac
+
+  manual-smoke:
+    needs: [manual-guard]
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'smoke-only'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Smoke
+        env:
+          SMOKE_REQUIRE_SECRETS: "1"
+          SMOKE_API_BASE: ${{ secrets.SMOKE_API_BASE }}
+          SMOKE_CLINIC_NAME: ${{ secrets.SMOKE_CLINIC_NAME }}
+          SMOKE_CLINIC_PASSWORD: ${{ secrets.SMOKE_CLINIC_PASSWORD }}
+          SMOKE_DOCTOR_USER: ${{ secrets.SMOKE_DOCTOR_USER }}
+          SMOKE_DOCTOR_PIN: ${{ secrets.SMOKE_DOCTOR_PIN }}
+          SMOKE_LAB_USER: ${{ secrets.SMOKE_LAB_USER }}
+          SMOKE_LAB_PIN: ${{ secrets.SMOKE_LAB_PIN }}
+        run: |
+          export SMOKE_API_BASE="${SMOKE_API_BASE:-https://api.aarogyaoneconnect.in}"
+          python scripts/release_smoke_test.py "$SMOKE_API_BASE"
+
+  manual-rollback:
+    needs: [manual-guard]
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback-api'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Rollback or pin image
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${DEPLOY_PATH:-/root/Healthcare-Secure}"
+          if [ -n "$IMAGE_TAG" ]; then
+            ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$HOST" "bash ${REMOTE}/deploy/remote_rebuild_api.sh ${REMOTE} '$IMAGE_TAG'"
+          else
+            ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$HOST" "bash ${REMOTE}/deploy/remote_rollback_api.sh ${REMOTE}"
+          fi
+
+  manual-seed-staging:
+    needs: [manual-guard]
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'seed-staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/configure-ssh
+        with:
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+      - name: Seed staging demos
+        env:
+          STAGING_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+        run: |
+          HOST="${DEPLOY_USER}@${DEPLOY_HOST}"
+          REMOTE="${STAGING_PATH:-/root/Healthcare-Secure-Staging}"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            deploy/remote_seed_staging.sh "${HOST}:${REMOTE}/deploy/"
+          rsync -az -e "ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            backend/scripts/seed_demo.py backend/scripts/seed_demo_gp.py \
+            "${HOST}:${REMOTE}/backend/scripts/"
+          ssh -i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$HOST" "bash ${REMOTE}/deploy/remote_seed_staging.sh ${REMOTE}"

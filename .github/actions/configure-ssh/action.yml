@@ -1,0 +1,31 @@
+name: Configure SSH
+description: Write deploy key and known_hosts for VPS access
+inputs:
+  ssh_key:
+    description: Private SSH key PEM
+    required: true
+  host:
+    description: VPS hostname or IP
+    required: true
+  user:
+    description: SSH user
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Write key
+      shell: bash
+      env:
+        DEPLOY_SSH_KEY: ${{ inputs.ssh_key }}
+        DEPLOY_HOST: ${{ inputs.host }}
+        DEPLOY_USER: ${{ inputs.user }}
+      run: |
+        test -n "$DEPLOY_SSH_KEY" || { echo "::error::Missing DEPLOY_SSH_KEY"; exit 1; }
+        test -n "$DEPLOY_HOST" || { echo "::error::Missing DEPLOY_HOST"; exit 1; }
+        test -n "$DEPLOY_USER" || { echo "::error::Missing DEPLOY_USER"; exit 1; }
+        mkdir -p ~/.ssh
+        printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+        echo "DEPLOY_HOST=$DEPLOY_HOST" >> "$GITHUB_ENV"
+        echo "DEPLOY_USER=$DEPLOY_USER" >> "$GITHUB_ENV"

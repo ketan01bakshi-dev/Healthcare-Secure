@@ -1,0 +1,6 @@
+# Optional overlay: when API_IMAGE is set, Compose uses the registry image
+# instead of (or tagged from) the local build. Used by pipeline deploys.
+services:
+  api:
+    image: ${API_IMAGE}
+    build: ./backend
